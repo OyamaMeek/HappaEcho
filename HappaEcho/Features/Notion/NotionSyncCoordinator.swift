@@ -308,8 +308,11 @@ actor NotionSyncCoordinator {
                     uploadID = upload.id
                 }
                 if attachment.uploadSentAt == nil {
-                    try await attempt { try await self.service.sendFile(uploadID: uploadID, fileURL: attachment.fileURL, contentType: attachment.contentType) }
+                    // A lost send response is ambiguous: retransmitting may upload the
+                    // same bytes again. Persist the send intent first, then let the
+                    // complete endpoint determine whether Notion accepted the upload.
                     try await store.markAttachmentSent(attachmentID: attachment.id)
+                    try await service.sendFile(uploadID: uploadID, fileURL: attachment.fileURL, contentType: attachment.contentType)
                 }
                 if attachment.remoteURL == nil {
                     let completed = try await attempt { try await self.service.completeFileUpload(uploadID: uploadID) }
