@@ -47,6 +47,8 @@ protocol NotionSyncModelStore: AnyObject {
     func conversation(id: UUID) throws -> NotionSyncConversation?
     func pageProperties(conversationID: UUID) throws -> [String: NotionProperty]
     func pendingMessageIDs() throws -> [UUID]
+    func messageIDs(conversationID: UUID) throws -> [UUID]
+    func resetPageCheckpoints(conversationID: UUID) throws
     func markSyncing(messageID: UUID) throws
     func bindPage(conversationID: UUID, databaseID: String, pageID: String) throws
     func confirmBatch(messageID: UUID, index: Int, blockIDs: [String]) throws
@@ -102,6 +104,34 @@ final class SwiftDataNotionSyncModelStore: NotionSyncModelStore {
             .filter { $0.syncState == .pending || $0.syncState == .failed }
             .sorted { $0.sequence < $1.sequence }
             .map(\.id)
+    }
+
+    func messageIDs(conversationID: UUID) throws -> [UUID] {
+        try modelContext.fetch(FetchDescriptor<Message>())
+            .filter { $0.conversation?.id == conversationID }
+            .sorted { $0.sequence < $1.sequence }
+            .map(\.id)
+    }
+
+    func resetPageCheckpoints(conversationID: UUID) throws {
+        let messages = try modelContext.fetch(FetchDescriptor<Message>()).filter { $0.conversation?.id == conversationID }
+        for message in messages {
+            message.nextNotionBatchIndex = 0
+            message.confirmedBatchIDs = []
+            message.confirmedBlockIDs = []
+            message.lastConfirmedAt = nil
+            message.lastSyncedAt = nil
+            message.syncState = .pending
+            for attachment in message.attachments {
+                attachment.syncState = .pending
+                attachment.notionUploadID = nil
+                attachment.notionUploadSentAt = nil
+                attachment.notionRemoteURL = nil
+                attachment.notionImageBlockID = nil
+                attachment.syncError = nil
+            }
+        }
+        try modelContext.save()
     }
 
     func markSyncing(messageID: UUID) throws {
@@ -184,6 +214,7 @@ actor NotionSyncCoordinator {
     private let formatter = NotionBlockFormatter()
     private var queues: [UUID: [UUID]] = [:]
     private var metadataQueues: Set<UUID> = []
+    private var replayingConversations: Set<UUID> = []
     private var workers: [UUID: Task<Void, Never>] = [:]
     private var workerTokens: [UUID: UUID] = [:]
 
@@ -282,6 +313,16 @@ actor NotionSyncCoordinator {
                 let page = try await attempt { try await self.service.createPage(.init(databaseID: databaseID, properties: properties)) }
                 try Task.checkCancellation()
                 try await store.bindPage(conversationID: message.conversationID, databaseID: databaseID, pageID: page.id)
+                if !replayingConversations.contains(message.conversationID) {
+                    replayingConversations.insert(message.conversationID)
+                    try await store.resetPageCheckpoints(conversationID: message.conversationID)
+                    let historicalIDs = try await store.messageIDs(conversationID: message.conversationID)
+                    var queue = queues[message.conversationID, default: []]
+                    for historicalID in historicalIDs.reversed() where historicalID != messageID && !queue.contains(historicalID) {
+                        queue.insert(historicalID, at: 0)
+                    }
+                    queues[message.conversationID] = queue
+                }
                 pageID = page.id
             }
 
