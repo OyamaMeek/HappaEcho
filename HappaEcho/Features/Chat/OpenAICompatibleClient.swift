@@ -267,8 +267,6 @@ private final class StreamingURLSessionTask: NSObject, URLSessionDataDelegate, @
     func cancel() {
         task.cancel()
         session?.invalidateAndCancel()
-        continuation?.finish()
-        self.continuation = nil
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {

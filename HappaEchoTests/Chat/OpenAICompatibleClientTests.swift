@@ -286,9 +286,9 @@ final class OpenAICompatibleClientTests: XCTestCase {
                     pieces.append(piece)
                     signalContinuation.yield(())
                 }
-                return ("finished", pieces)
+                return (error: nil as Error?, pieces: pieces)
             } catch {
-                return ("threw", pieces)
+                return (error: error, pieces: pieces)
             }
         }
 
@@ -297,20 +297,13 @@ final class OpenAICompatibleClientTests: XCTestCase {
 
         task.cancel()
         await Task.yield()
-        let result = await task.result
+        let taskResult = await task.result
 
-        guard case .success(let (outcome, pieces)) = result else {
+        guard case .success(let result) = taskResult else {
             return XCTFail("task failed")
         }
-        // Cancelling the consuming task may end the `for try await` loop
-        // normally (the stream terminates and `next()` returns nil) or throw;
-        // what matters is that the yielded delta arrived, the transport was
-        // actually cancelled, and the loop did not hang.
-        XCTAssertTrue(
-            outcome == "finished" || outcome == "threw",
-            "expected loop to end on cancellation, got \(outcome)"
-        )
-        XCTAssertEqual(pieces, ["part"])
+        XCTAssertTrue(result.error is CancellationError, "expected CancellationError propagation, got \(String(describing: result.error))")
+        XCTAssertEqual(result.pieces, ["part"])
         XCTAssertGreaterThanOrEqual(StubURLProtocol.stopLoadingCount, 1)
     }
 
