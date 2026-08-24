@@ -113,10 +113,22 @@ final class NotionClientTests: XCTestCase {
     }
 
     func testMapsHTTPDateRetryAfterToNonnegativeDelay() async {
+        await assertHTTPDateRetryAfter("EEE, dd MMM yyyy HH:mm:ss zzz")
+    }
+
+    func testMapsRFC850RetryAfterToNonnegativeDelay() async {
+        await assertHTTPDateRetryAfter("EEEE, dd-MMM-yy HH:mm:ss zzz")
+    }
+
+    func testMapsASCTIMERetryAfterToNonnegativeDelay() async {
+        await assertHTTPDateRetryAfter("EEE MMM d HH:mm:ss yyyy")
+    }
+
+    private func assertHTTPDateRetryAfter(_ format: String) async {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        formatter.dateFormat = format
         let header = formatter.string(from: Date().addingTimeInterval(60))
         let client = makeClient { _ in .init(statusCode: 429, headers: ["Retry-After": header]) }
         do {
