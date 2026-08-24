@@ -295,7 +295,7 @@ actor NotionSyncCoordinator {
         do {
             let config = try await store.configuration()
             guard config.enabled, let databaseID = config.databaseID, !databaseID.isEmpty else { return }
-            guard let message = try await store.message(id: messageID),
+            guard var message = try await store.message(id: messageID),
                   let conversation = try await store.conversation(id: message.conversationID) else { return }
             guard message.syncState != .synced else { return }
             try Task.checkCancellation()
@@ -322,6 +322,8 @@ actor NotionSyncCoordinator {
                         queue.insert(historicalID, at: 0)
                     }
                     queues[message.conversationID] = queue
+                    guard let refreshed = try await store.message(id: messageID) else { return }
+                    message = refreshed
                 }
                 pageID = page.id
             }

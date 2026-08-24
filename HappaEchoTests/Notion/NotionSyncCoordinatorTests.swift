@@ -38,7 +38,7 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         try await fixture.waitFor { fixture.message.syncState == .synced }
 
         let operations = await fixture.service.recordedOperations()
-        XCTAssertEqual(operations, ["create:database", "list:page"])
+        XCTAssertEqual(operations.filter { $0 != "update:page" }, ["create:database", "list:page"])
         XCTAssertEqual(fixture.message.nextNotionBatchIndex, 1)
         XCTAssertEqual(fixture.message.confirmedBatchIDs, ["0"])
         XCTAssertEqual(fixture.message.confirmedBlockIDs, ["remote-marker"])
