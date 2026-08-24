@@ -323,6 +323,7 @@ actor NotionSyncCoordinator {
                 try await store.completeAttachment(attachmentID: attachment.id, imageBlockID: imageBlockID)
             }
             try await store.markSynced(messageID: messageID)
+            metadataQueues.insert(message.conversationID)
         } catch is CancellationError {
         } catch {
             try? await store.markFailed(messageID: messageID, error: error.localizedDescription)
