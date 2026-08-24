@@ -25,12 +25,18 @@ final class OpenAICompatibleClient: ChatCompletionService {
 
     private let configuration: Configuration
     private let session: URLSession
+    private let streamingTransport: any StreamingHTTPTransport
     private let encoder = JSONEncoder()
     private let decoder: JSONDecoder
 
-    init(configuration: Configuration, session: URLSession = .shared) {
+    init(
+        configuration: Configuration,
+        session: URLSession = .shared,
+        streamingTransport: (any StreamingHTTPTransport)? = nil
+    ) {
         self.configuration = configuration
         self.session = session
+        self.streamingTransport = streamingTransport ?? URLSessionStreamingHTTPTransport(session: session)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         self.decoder = decoder
@@ -43,7 +49,7 @@ final class OpenAICompatibleClient: ChatCompletionService {
             let task = Task {
                 do {
                     let urlRequest = try makeURLRequest(model: request.model, messages: request.messages, stream: true)
-                    let transport = StreamingURLSessionTask(session: session, request: urlRequest)
+                    let transport = streamingTransport.start(request: urlRequest)
                     var response: HTTPURLResponse?
                     var body = Data()
                     var parser = ServerSentEventParser()
@@ -239,76 +245,6 @@ final class OpenAICompatibleClient: ChatCompletionService {
         return envelope.error?.message
     }
 }
-
-private final class StreamingURLSessionTask: NSObject, URLSessionDataDelegate, @unchecked Sendable {
-    enum Event {
-        case response(URLResponse)
-        case data(Data)
-    }
-
-    let events: AsyncThrowingStream<Event, Error>
-    private var task: URLSessionDataTask!
-    private var continuation: AsyncThrowingStream<Event, Error>.Continuation?
-    private var session: URLSession?
-    private let stateLock = NSLock()
-    private var isTerminated = false
-
-    init(session: URLSession, request: URLRequest) {
-        var continuation: AsyncThrowingStream<Event, Error>.Continuation?
-        events = AsyncThrowingStream { continuation = $0 }
-        self.continuation = continuation
-        super.init()
-        let configuration = session.configuration
-        let delegateQueue = OperationQueue()
-        delegateQueue.maxConcurrentOperationCount = 1
-        let delegateSession = URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
-        self.session = delegateSession
-        task = delegateSession.dataTask(with: request)
-        task.resume()
-    }
-
-    func cancel() {
-        finish(throwing: CancellationError())
-        task.cancel()
-        session?.invalidateAndCancel()
-    }
-
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        continuation?.yield(.response(response))
-        completionHandler(.allow)
-    }
-
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        continuation?.yield(.data(data))
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error {
-            finish(throwing: error)
-        } else {
-            finish()
-        }
-        self.session = nil
-    }
-
-    private func finish(throwing error: Error? = nil) {
-        stateLock.lock()
-        guard !isTerminated else {
-            stateLock.unlock()
-            return
-        }
-        isTerminated = true
-        let continuation = self.continuation
-        self.continuation = nil
-        stateLock.unlock()
-        if let error {
-            continuation?.finish(throwing: error)
-        } else {
-            continuation?.finish()
-        }
-    }
-}
-
 
 private struct ChatCompletionBody: Encodable {
     var model: String

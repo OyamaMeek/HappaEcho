@@ -29,6 +29,7 @@
 		C10000140000000000000014 /* OpenAICompatibleClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000180000000000000018 /* OpenAICompatibleClient.swift */; };
 		C10000150000000000000015 /* ServerSentEventParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000190000000000000019 /* ServerSentEventParserTests.swift */; };
 		C10000160000000000000016 /* OpenAICompatibleClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */; };
+			C10000170000000000000017 /* StreamingHTTPTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001B0000000000000001B /* StreamingHTTPTransport.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		B10000180000000000000018 /* OpenAICompatibleClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleClient.swift; sourceTree = "<group>"; };
 		B10000190000000000000019 /* ServerSentEventParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSentEventParserTests.swift; sourceTree = "<group>"; };
 		B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleClientTests.swift; sourceTree = "<group>"; };
+			B100001B0000000000000001B /* StreamingHTTPTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingHTTPTransport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -162,6 +164,7 @@
 			children = (
 				B10000150000000000000015 /* ServerSentEventParser.swift */,
 				B10000160000000000000016 /* HTTPError.swift */,
+					B100001B0000000000000001B /* StreamingHTTPTransport.swift */,
 			);
 			path = HTTP;
 			sourceTree = "<group>";
@@ -398,6 +401,7 @@
 				C10000120000000000000012 /* HTTPError.swift in Sources */,
 				C10000130000000000000013 /* ChatCompletionTypes.swift in Sources */,
 				C10000140000000000000014 /* OpenAICompatibleClient.swift in Sources */,
+					C10000170000000000000017 /* StreamingHTTPTransport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

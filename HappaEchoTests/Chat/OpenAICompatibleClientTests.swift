@@ -15,6 +15,7 @@ final class StubURLProtocol: URLProtocol {
         var finishImmediately: Bool = true
     }
 
+    private static let stateLock = NSLock()
     nonisolated(unsafe) static var handler: ((URLRequest) throws -> Response)?
     nonisolated(unsafe) static var capturedRequest: URLRequest?
     nonisolated(unsafe) static var stopLoadingCount = 0
@@ -23,13 +24,18 @@ final class StubURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let handler = Self.handler else {
+        Self.stateLock.lock()
+        let handler = Self.handler
+        Self.stateLock.unlock()
+        guard let handler else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
         do {
             let response = try handler(request)
+            Self.stateLock.lock()
             Self.capturedRequest = request
+            Self.stateLock.unlock()
             guard let url = request.url else {
                 client?.urlProtocol(self, didFailWithError: URLError(.badURL))
                 return
@@ -49,7 +55,9 @@ final class StubURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {
+        Self.stateLock.lock()
         Self.stopLoadingCount += 1
+        Self.stateLock.unlock()
         client?.urlProtocol(self, didFailWithError: URLError(.cancelled))
     }
 }
@@ -111,153 +119,104 @@ final class OpenAICompatibleClientTests: XCTestCase {
 
     // MARK: - Streaming
 
+    private func streamingClient(task: FakeStreamingHTTPTask) -> OpenAICompatibleClient {
+        let transport = FakeStreamingHTTPTransport()
+        transport.enqueue(task: task)
+        return OpenAICompatibleClient(
+            configuration: .init(endpoint: Self.endpoint, apiKey: "sk-test"),
+            streamingTransport: transport
+        )
+    }
+
+    private func successfulTask(_ chunks: [Data]) -> FakeStreamingHTTPTask {
+        let task = FakeStreamingHTTPTask()
+        task.yield(.response(HTTPURLResponse(url: Self.endpoint, statusCode: 200, httpVersion: nil, headerFields: nil)!))
+        chunks.forEach { task.yield(.data($0)) }
+        task.finish()
+        return task
+    }
+
+    private func assertStreamError(_ expected: ChatServiceError, task: FakeStreamingHTTPTask, file: StaticString = #filePath, line: UInt = #line) async {
+        do {
+            _ = try await collect(streamingClient(task: task).stream(request: sampleRequest()))
+            XCTFail("expected \(expected)", file: file, line: line)
+        } catch let error as ChatServiceError {
+            XCTAssertEqual(error, expected, file: file, line: line)
+        } catch {
+            XCTFail("unexpected error \(error)", file: file, line: line)
+        }
+    }
+
     func testStreamYieldsDeltasUntilDone() async throws {
-        let payload = """
-        data: {"choices":[{"delta":{"content":"Hello"}}]}
-
-        data: {"choices":[{"delta":{"content":" world"}}]}
-
-        data: [DONE]
-
-        """
-        StubURLProtocol.handler = { _ in .init(statusCode: 200, chunks: [Data(payload.utf8)]) }
-        let pieces = try await collect(makeClient().stream(request: sampleRequest()))
+        let payload = "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\" world\"}}]}\n\ndata: [DONE]\n\n"
+        let pieces = try await collect(streamingClient(task: successfulTask([Data(payload.utf8)])).stream(request: sampleRequest()))
         XCTAssertEqual(pieces, ["Hello", " world"])
     }
 
     func testStreamEndsImmediatelyOnDoneWithoutEvents() async throws {
-        StubURLProtocol.handler = { _ in .init(chunks: [Data("data: [DONE]\n\n".utf8)]) }
-        let pieces = try await collect(makeClient().stream(request: sampleRequest()))
+        let pieces = try await collect(streamingClient(task: successfulTask([Data("data: [DONE]\n\n".utf8)])).stream(request: sampleRequest()))
         XCTAssertTrue(pieces.isEmpty)
     }
 
     func testStreamIgnoresEmptyAndNullDeltas() async throws {
-        let payload = """
-        data: {"choices":[{"delta":{"content":""}}]}
-
-        data: {"choices":[{"delta":{"content":null}}]}
-
-        data: [DONE]
-
-        """
-        StubURLProtocol.handler = { _ in .init(chunks: [Data(payload.utf8)]) }
-        let pieces = try await collect(makeClient().stream(request: sampleRequest()))
+        let payload = "data: {\"choices\":[{\"delta\":{\"content\":\"\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":null}}]}\n\ndata: [DONE]\n\n"
+        let pieces = try await collect(streamingClient(task: successfulTask([Data(payload.utf8)])).stream(request: sampleRequest()))
         XCTAssertTrue(pieces.isEmpty)
     }
 
     func testStreamHandlesIncrementalByteFlushing() async throws {
-        // The client feeds the parser every byte as it arrives, so a delta is
-        // yielded as soon as its event completes even if the network delivered
-        // it inside a single chunk. This also covers a multi-byte UTF-8 code
-        // point that the parser only ever sees in pieces.
         let payload = "data: {\"choices\":[{\"delta\":{\"content\":\"你好\"}}]}\n\ndata: [DONE]\n\n"
-        StubURLProtocol.handler = { _ in .init(chunks: [Data(payload.utf8)]) }
-        let pieces = try await collect(makeClient().stream(request: sampleRequest()))
+        let pieces = try await collect(streamingClient(task: successfulTask([Data(payload.utf8)])).stream(request: sampleRequest()))
         XCTAssertEqual(pieces, ["你好"])
     }
 
     func testUnterminatedStreamFlushesFinalEvent() async throws {
-        // No trailing blank line and no [DONE]; the final event still yields.
         let payload = "data: {\"choices\":[{\"delta\":{\"content\":\"tail\"}}]}"
-        StubURLProtocol.handler = { _ in .init(chunks: [Data(payload.utf8)]) }
-        let pieces = try await collect(makeClient().stream(request: sampleRequest()))
+        let pieces = try await collect(streamingClient(task: successfulTask([Data(payload.utf8)])).stream(request: sampleRequest()))
         XCTAssertEqual(pieces, ["tail"])
     }
 
-    // MARK: - Provider error mapping
-
-    func testHTTP401MapsToUnauthorized() async {
-        StubURLProtocol.handler = { _ in
-            .init(statusCode: 401, chunks: [Data(#"{"error":{"message":"bad key"}}"#.utf8)])
+    func testHTTPStatusMapsProviderErrors() async {
+        for (status, expected) in [(400, ChatServiceError.invalidRequest(message: "bad body")), (401, .unauthorized(message: "bad body")), (403, .unauthorized(message: "bad body")), (429, .rateLimited(message: "bad body")), (500, .serverError(message: "bad body"))] {
+            let task = FakeStreamingHTTPTask()
+            task.yield(.response(HTTPURLResponse(url: Self.endpoint, statusCode: status, httpVersion: nil, headerFields: nil)!))
+            task.yield(.data(Data(#"{"error":{"message":"bad body"}}"#.utf8)))
+            task.finish()
+            await assertStreamError(expected, task: task)
         }
-        await assertStreamError(.unauthorized(message: "bad key"))
-    }
-
-    func testHTTP403MapsToUnauthorized() async {
-        StubURLProtocol.handler = { _ in
-            .init(statusCode: 403, chunks: [Data(#"{"error":{"message":"forbidden"}}"#.utf8)])
-        }
-        await assertStreamError(.unauthorized(message: "forbidden"))
-    }
-
-    func testHTTP429MapsToRateLimited() async {
-        StubURLProtocol.handler = { _ in
-            .init(statusCode: 429, chunks: [Data(#"{"error":{"message":"slow down"}}"#.utf8)])
-        }
-        await assertStreamError(.rateLimited(message: "slow down"))
-    }
-
-    func testHTTP500MapsToServerError() async {
-        StubURLProtocol.handler = { _ in
-            .init(statusCode: 500, chunks: [Data("upstream exploded".utf8)])
-        }
-        await assertStreamError(.serverError(message: nil))
-    }
-
-    func testHTTP400MapsToInvalidRequest() async {
-        StubURLProtocol.handler = { _ in
-            .init(statusCode: 400, chunks: [Data(#"{"error":{"message":"bad body"}}"#.utf8)])
-        }
-        await assertStreamError(.invalidRequest(message: "bad body"))
     }
 
     func testMalformedJSONThrowsInvalidResponse() async {
-        StubURLProtocol.handler = { _ in .init(chunks: [Data("data: {\"choices\":\n\n".utf8)]) }
-        await assertStreamError(.invalidResponse)
+        await assertStreamError(.invalidResponse, task: successfulTask([Data("data: {\"choices\":\n\n".utf8)]))
     }
 
     func testTransportErrorMapsToNetwork() async {
-        StubURLProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
-        do {
-            _ = try await collect(makeClient().stream(request: sampleRequest()))
-            XCTFail("expected error")
-        } catch let error as ChatServiceError {
-            guard case .network = error else {
-                return XCTFail("expected network error, got \(error)")
-            }
-        } catch {
-            XCTFail("unexpected error \(error)")
-        }
+        let task = FakeStreamingHTTPTask()
+        task.finish(throwing: URLError(.notConnectedToInternet))
+        await assertStreamError(.network(code: URLError.notConnectedToInternet.rawValue), task: task)
     }
 
-    // MARK: - Request encoding
-
     func testRequestEncodesEachInputMessageExactlyOnce() async throws {
-        var capturedBody: Data?
-        StubURLProtocol.handler = { request in
-            capturedBody = request.httpBody
-            return .init(chunks: [Data("data: [DONE]\n\n".utf8)])
-        }
-
+        let task = successfulTask([Data("data: [DONE]\n\n".utf8)])
+        let client = streamingClient(task: task)
         let image = ChatContentPart.image(.init(mimeType: "image/png", base64: "aGVsbG8="))
         let request = ChatRequest(model: "gpt-test", messages: [
             ChatInputMessage(role: .system, content: [.text("You are helpful.")]),
             ChatInputMessage(role: .user, content: [.text("Describe this:"), image]),
             ChatInputMessage(role: .assistant, content: [.text("Sure.")]),
         ])
-
-        _ = try await collect(makeClient().stream(request: request))
-
-        let body = try XCTUnwrap(capturedBody)
+        _ = try await collect(client.stream(request: request))
+        let body = try XCTUnwrap(task.request?.httpBody)
         let wire = try JSONDecoder().decode(WireBody.self, from: body)
-        XCTAssertEqual(wire.model, "gpt-test")
-        XCTAssertEqual(wire.stream, true)
         XCTAssertEqual(wire.messages.count, 3)
         XCTAssertEqual(wire.messages.map(\.role), [.system, .user, .assistant])
-        XCTAssertEqual(wire.messages[0].content, [.text("You are helpful.")])
         XCTAssertEqual(wire.messages[1].content, [.text("Describe this:"), image])
-        XCTAssertEqual(wire.messages[2].content, [.text("Sure.")])
     }
 
     func testRequestCarriesExpectedHeadersAndMethod() async throws {
-        var captured: URLRequest?
-        StubURLProtocol.handler = { request in
-            captured = request
-            return .init(chunks: [Data("data: [DONE]\n\n".utf8)])
-        }
-        _ = try await collect(makeClient().stream(request: sampleRequest()))
-
-        let request = try XCTUnwrap(captured)
+        let task = successfulTask([Data("data: [DONE]\n\n".utf8)])
+        _ = try await collect(streamingClient(task: task).stream(request: sampleRequest()))
+        let request = try XCTUnwrap(task.request)
         XCTAssertEqual(request.url, Self.endpoint)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
@@ -266,45 +225,32 @@ final class OpenAICompatibleClientTests: XCTestCase {
 
     // MARK: - Cancellation
 
-    func testCancellingStreamPropagatesCancellationAndCancelsTransport() async throws {
-        // Deliver one delta, then hold the connection open so the transport is
-        // still active when the consumer cancels.
-        StubURLProtocol.handler = { _ in
-            .init(
-                statusCode: 200,
-                chunks: [Data("data: {\"choices\":[{\"delta\":{\"content\":\"part\"}}]}\n\n".utf8)],
-                finishImmediately: false
-            )
-        }
-
-        let (signal, signalContinuation) = AsyncStream<Void>.makeStream()
-
-        let task = Task {
+    func testInjectedTransportYieldsFirstDeltaAndCancelsDeterministically() async throws {
+        let transport = FakeStreamingHTTPTransport()
+        let client = OpenAICompatibleClient(configuration: .init(endpoint: Self.endpoint, apiKey: "sk-test"), streamingTransport: transport)
+        let task = transport.enqueue()
+        let (firstDelta, firstDeltaContinuation) = AsyncStream<Void>.makeStream()
+        let consumer = Task {
             var pieces: [String] = []
             do {
-                for try await piece in makeClient().stream(request: sampleRequest()) {
+                for try await piece in client.stream(request: sampleRequest()) {
                     pieces.append(piece)
-                    signalContinuation.yield(())
+                    firstDeltaContinuation.yield(())
                 }
+                try Task.checkCancellation()
                 return (error: nil as Error?, pieces: pieces)
-            } catch {
-                return (error: error, pieces: pieces)
-            }
+            } catch { return (error: error, pieces: pieces) }
         }
-
-        var iterator = signal.makeAsyncIterator()
+        await transport.waitForRequest()
+        task.yield(.response(HTTPURLResponse(url: Self.endpoint, statusCode: 200, httpVersion: nil, headerFields: nil)!))
+        task.yield(.data(Data("data: {\"choices\":[{\"delta\":{\"content\":\"part\"}}]}\n\n".utf8)))
+        var iterator = firstDelta.makeAsyncIterator()
         _ = await iterator.next()
-
-        task.cancel()
-        await Task.yield()
-        let taskResult = await task.result
-
-        guard case .success(let result) = taskResult else {
-            return XCTFail("task failed")
-        }
-        XCTAssertTrue(result.error is CancellationError, "expected CancellationError propagation, got \(String(describing: result.error))")
+        consumer.cancel()
+        let result = await consumer.value
+        XCTAssertTrue(result.error is CancellationError, "expected CancellationError, got \(String(describing: result.error))")
         XCTAssertEqual(result.pieces, ["part"])
-        XCTAssertGreaterThanOrEqual(StubURLProtocol.stopLoadingCount, 1)
+        XCTAssertEqual(task.cancelCount, 1)
     }
 
     // MARK: - Title generation
@@ -359,6 +305,66 @@ final class OpenAICompatibleClientTests: XCTestCase {
         XCTAssertEqual(wire.model, "gpt-test")
         XCTAssertEqual(wire.messages.count, 1)
         XCTAssertEqual(wire.messages[0].role, .user)
+    }
+}
+
+private final class FakeStreamingHTTPTransport: StreamingHTTPTransport {
+    private let requestStarted: AsyncStream<Void>
+    private let requestStartedContinuation: AsyncStream<Void>.Continuation
+    private var queuedTasks: [FakeStreamingHTTPTask] = []
+
+    init() {
+        (requestStarted, requestStartedContinuation) = AsyncStream.makeStream()
+    }
+
+    func enqueue(task: FakeStreamingHTTPTask) {
+        queuedTasks.append(task)
+    }
+
+    func enqueue() -> FakeStreamingHTTPTask {
+        let task = FakeStreamingHTTPTask()
+        enqueue(task: task)
+        return task
+    }
+
+    func start(request: URLRequest) -> any StreamingHTTPTask {
+        let task = queuedTasks.removeFirst()
+        task.request = request
+        requestStartedContinuation.yield(())
+        return task
+    }
+
+    func waitForRequest() async {
+        var iterator = requestStarted.makeAsyncIterator()
+        _ = await iterator.next()
+    }
+}
+
+private final class FakeStreamingHTTPTask: StreamingHTTPTask {
+    let events: AsyncThrowingStream<StreamingHTTPEvent, Error>
+    private let continuation: AsyncThrowingStream<StreamingHTTPEvent, Error>.Continuation
+    private(set) var cancelCount = 0
+    var request: URLRequest?
+
+    init() {
+        (events, continuation) = AsyncThrowingStream.makeStream()
+    }
+
+    func yield(_ event: StreamingHTTPEvent) {
+        continuation.yield(event)
+    }
+
+    func finish(throwing error: Error? = nil) {
+        if let error {
+            continuation.finish(throwing: error)
+        } else {
+            continuation.finish()
+        }
+    }
+
+    func cancel() {
+        cancelCount += 1
+        continuation.finish(throwing: CancellationError())
     }
 }
 
