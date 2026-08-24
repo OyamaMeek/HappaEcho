@@ -38,6 +38,8 @@ C10000180000000000000018 /* AttachmentStore.swift in Sources */ = {isa = PBXBuil
 	C100001D0000000000000001D /* ChatSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000210000000000000021 /* ChatSessionController.swift */; };
 			C100001E0000000000000001E /* ChatSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000220000000000000022 /* ChatSessionState.swift */; };
 			C100001F0000000000000001F /* ChatSessionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000230000000000000023 /* ChatSessionControllerTests.swift */; };
+			C10000200000000000000020 /* TitleGenerationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000240000000000000024 /* TitleGenerationCoordinator.swift */; };
+			C10000210000000000000021 /* TitleGenerationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000250000000000000025 /* TitleGenerationCoordinatorTests.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +95,8 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 	B10000210000000000000021 /* ChatSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionController.swift; sourceTree = "<group>"; };
 			B10000220000000000000022 /* ChatSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionState.swift; sourceTree = "<group>"; };
 			B10000230000000000000023 /* ChatSessionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionControllerTests.swift; sourceTree = "<group>"; };
+			B10000240000000000000024 /* TitleGenerationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleGenerationCoordinator.swift; sourceTree = "<group>"; };
+			B10000250000000000000025 /* TitleGenerationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleGenerationCoordinatorTests.swift; sourceTree = "<group>"; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -199,10 +203,20 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 				A10000110000000000000011 /* Settings */,
 				A10000140000000000000014 /* Chat */,
 					A10000160000000000000016 /* Attachments */,
+					A10000180000000000000018 /* Titles */,
 			);
 			path = Features;
 			sourceTree = "<group>";
 		};
+		A10000180000000000000018 /* Titles */ = {
+			isa = PBXGroup;
+			children = (
+				B10000240000000000000024 /* TitleGenerationCoordinator.swift */,
+			);
+			path = Titles;
+			sourceTree = "<group>";
+		};
+
 		A10000140000000000000014 /* Chat */ = {
 			isa = PBXGroup;
 			children = (
@@ -239,9 +253,17 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 				A10000120000000000000012 /* Settings */,
 				A10000150000000000000015 /* Chat */,
 					A10000170000000000000017 /* Attachments */,
-				B10000040000000000000004 /* HappaEchoTests.swift */,
+					A10000190000000000000019 /* Titles */,				B10000040000000000000004 /* HappaEchoTests.swift */,
 			);
 			path = HappaEchoTests;
+			sourceTree = "<group>";
+		};
+		A10000190000000000000019 /* Titles */ = {
+			isa = PBXGroup;
+			children = (
+				B10000250000000000000025 /* TitleGenerationCoordinatorTests.swift */,
+			);
+			path = Titles;
 			sourceTree = "<group>";
 		};
 		A10000150000000000000015 /* Chat */ = {
@@ -250,7 +272,7 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 				B10000190000000000000019 /* ServerSentEventParserTests.swift */,
 				B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */,
 					B10000200000000000000020 /* MultimodalRequestBodyTests.swift */,
-					B10000230000000000000023 /* ChatSessionControllerTests.swift */,
+				B10000230000000000000023 /* ChatSessionControllerTests.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -432,6 +454,7 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 					C100001A0000000000000001A /* MultimodalRequestBody.swift in Sources */,
 					C100001D0000000000000001D /* ChatSessionController.swift in Sources */,
 					C100001E0000000000000001E /* ChatSessionState.swift in Sources */,
+					C10000200000000000000020 /* TitleGenerationCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -448,6 +471,7 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 					C100001B0000000000000001B /* AttachmentStoreTests.swift in Sources */,
 					C100001C0000000000000001C /* MultimodalRequestBodyTests.swift in Sources */,
 					C100001F0000000000000001F /* ChatSessionControllerTests.swift in Sources */,
+					C10000210000000000000021 /* TitleGenerationCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
