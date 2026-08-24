@@ -364,7 +364,7 @@ private final class FakeStreamingHTTPTransport: StreamingHTTPTransport {
         return task
     }
 
-    func start(request: URLRequest) -> any StreamingHTTPTask {
+    func start(request: URLRequest, bodyFileURL: URL?) -> any StreamingHTTPTask {
         let task = queuedTasks.removeFirst()
         task.request = request
         requestStartedContinuation.yield(())

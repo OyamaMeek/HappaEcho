@@ -12,7 +12,12 @@ protocol StreamingHTTPTask: AnyObject {
 }
 
 protocol StreamingHTTPTransport: AnyObject {
-    func start(request: URLRequest) -> any StreamingHTTPTask
+    /// `bodyFileURL` is transport metadata, never emitted as an HTTP header.
+    func start(request: URLRequest, bodyFileURL: URL?) -> any StreamingHTTPTask
+}
+
+extension StreamingHTTPTransport {
+    func start(request: URLRequest) -> any StreamingHTTPTask { start(request: request, bodyFileURL: nil) }
 }
 
 final class URLSessionStreamingHTTPTransport: StreamingHTTPTransport {
@@ -22,8 +27,8 @@ final class URLSessionStreamingHTTPTransport: StreamingHTTPTransport {
         self.session = session
     }
 
-    func start(request: URLRequest) -> any StreamingHTTPTask {
-        URLSessionStreamingHTTPTask(session: session, request: request)
+    func start(request: URLRequest, bodyFileURL: URL? = nil) -> any StreamingHTTPTask {
+        URLSessionStreamingHTTPTask(session: session, request: request, bodyFileURL: bodyFileURL)
     }
 }
 
@@ -36,7 +41,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
     private var delegateSession: URLSession?
     private var finished = false
 
-    init(session: URLSession, request: URLRequest) {
+    init(session: URLSession, request: URLRequest, bodyFileURL: URL?) {
         var capturedContinuation: AsyncThrowingStream<StreamingHTTPEvent, Error>.Continuation?
         events = AsyncThrowingStream { capturedContinuation = $0 }
         continuation = capturedContinuation
@@ -46,7 +51,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
         delegateQueue.maxConcurrentOperationCount = 1
         let delegateSession = URLSession(configuration: session.configuration, delegate: self, delegateQueue: delegateQueue)
         self.delegateSession = delegateSession
-        bodyStreamURL = request.value(forHTTPHeaderField: "X-HappaEcho-Prepared-Body-URL").flatMap(URL.init(string:))
+        bodyStreamURL = bodyFileURL
         task = delegateSession.dataTask(with: request)
         task.resume()
     }
