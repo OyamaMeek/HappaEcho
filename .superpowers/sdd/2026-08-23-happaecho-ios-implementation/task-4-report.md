@@ -17,3 +17,8 @@ FOLLOW-UP COMMAND: timeout 120s xcodebuild test -project HappaEcho.xcodeproj -sc
 FOLLOW-UP OUTCOME: Timed out (exit 124); no completed test result. `git diff --check` passed.
 FOLLOW-UP SELF-REVIEW: Production change is one post-loop cancellation checkpoint; fixture change is limited to cancellation semantics. No unrelated code changed.
 
+FINAL FIX STATUS: StreamingURLSessionTask.cancel() now deterministically terminates its internal event stream with CancellationError through a lock-protected one-shot finish helper shared by cancel() and didCompleteWithError. URLSession task/session cancellation remains.
+FINAL COMMANDS: timeout 120s xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/OpenAICompatibleClientTests/testCancellingStreamPropagatesCancellationAndCancelsTransport; timeout 180s xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/ServerSentEventParserTests -only-testing:HappaEchoTests/OpenAICompatibleClientTests
+FINAL OUTCOME: Both commands timed out (exit 124); each reached the cancellation test, which remained active until the 60-second URLSession timeout. No completed test result was emitted.
+FINAL SELF-REVIEW: Production diff is limited to deterministic one-shot internal stream termination and existing cancellation test fixture semantics. Report trailing blank line removed; git diff --check passed.
+FINAL CONCERNS: The simulator cancellation test remains blocked despite deterministic internal termination and needs coordinator follow-up with runtime diagnostics.

@@ -250,6 +250,8 @@ private final class StreamingURLSessionTask: NSObject, URLSessionDataDelegate, @
     private var task: URLSessionDataTask!
     private var continuation: AsyncThrowingStream<Event, Error>.Continuation?
     private var session: URLSession?
+    private let stateLock = NSLock()
+    private var isTerminated = false
 
     init(session: URLSession, request: URLRequest) {
         var continuation: AsyncThrowingStream<Event, Error>.Continuation?
@@ -266,6 +268,7 @@ private final class StreamingURLSessionTask: NSObject, URLSessionDataDelegate, @
     }
 
     func cancel() {
+        finish(throwing: CancellationError())
         task.cancel()
         session?.invalidateAndCancel()
     }
@@ -281,12 +284,28 @@ private final class StreamingURLSessionTask: NSObject, URLSessionDataDelegate, @
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error {
+            finish(throwing: error)
+        } else {
+            finish()
+        }
+        self.session = nil
+    }
+
+    private func finish(throwing error: Error? = nil) {
+        stateLock.lock()
+        guard !isTerminated else {
+            stateLock.unlock()
+            return
+        }
+        isTerminated = true
+        let continuation = self.continuation
+        self.continuation = nil
+        stateLock.unlock()
+        if let error {
             continuation?.finish(throwing: error)
         } else {
             continuation?.finish()
         }
-        continuation = nil
-        self.session = nil
     }
 }
 
