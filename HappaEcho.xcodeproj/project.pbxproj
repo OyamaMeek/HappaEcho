@@ -19,6 +19,10 @@
 		C10000090000000000000009 /* NotionPageBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000D0000000000000000D /* NotionPageBinding.swift */; };
 		C100000A0000000000000000A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E0000000000000000E /* AppSettings.swift */; };
 		C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F0000000000000000F /* HappaEchoSchema.swift */; };
+		C100000D000000000000000D /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000110000000000000011 /* KeychainService.swift */; };
+		C100000E000000000000000E /* SettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000120000000000000012 /* SettingsRepository.swift */; };
+		C100000F0000000000000000F /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000130000000000000013 /* KeychainServiceTests.swift */; };
+		C10000100000000000000010 /* SettingsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000140000000000000014 /* SettingsRepositoryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +59,10 @@
 		B100000D0000000000000000D /* NotionPageBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionPageBinding.swift; sourceTree = "<group>"; };
 		B100000E0000000000000000E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		B100000F0000000000000000F /* HappaEchoSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoSchema.swift; sourceTree = "<group>"; };
+		B10000110000000000000011 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		B10000120000000000000012 /* SettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRepository.swift; sourceTree = "<group>"; };
+		B10000130000000000000013 /* KeychainServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainServiceTests.swift; sourceTree = "<group>"; };
+		B10000140000000000000014 /* SettingsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRepositoryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +115,8 @@
 			children = (
 				A10000050000000000000005 /* App */,
 				A100000C000000000000000C /* Models */,
+				A100000E000000000000000E /* Infrastructure */,
+				A10000100000000000000010 /* Features */,
 				B10000030000000000000003 /* Info.plist */,
 			);
 			path = HappaEcho;
@@ -126,6 +136,38 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		A100000E000000000000000E /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				A100000F000000000000000F /* Security */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		A100000F000000000000000F /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				B10000110000000000000011 /* KeychainService.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		A10000100000000000000010 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A10000110000000000000011 /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A10000110000000000000011 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B10000120000000000000012 /* SettingsRepository.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		A10000050000000000000005 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -139,6 +181,7 @@
 			isa = PBXGroup;
 			children = (
 				A100000D000000000000000D /* Models */,
+				A10000120000000000000012 /* Settings */,
 				B10000040000000000000004 /* HappaEchoTests.swift */,
 			);
 			path = HappaEchoTests;
@@ -150,6 +193,15 @@
 				B10000100000000000000010 /* ModelPersistenceTests.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		A10000120000000000000012 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B10000130000000000000013 /* KeychainServiceTests.swift */,
+				B10000140000000000000014 /* SettingsRepositoryTests.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		A10000070000000000000007 /* HappaEchoUITests */ = {
@@ -298,6 +350,8 @@
 				C10000090000000000000009 /* NotionPageBinding.swift in Sources */,
 				C100000A0000000000000000A /* AppSettings.swift in Sources */,
 				C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */,
+				C100000D000000000000000D /* KeychainService.swift in Sources */,
+				C100000E000000000000000E /* SettingsRepository.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,6 +361,8 @@
 			files = (
 				C10000030000000000000003 /* HappaEchoTests.swift in Sources */,
 				C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */,
+				C100000F0000000000000000F /* KeychainServiceTests.swift in Sources */,
+				C10000100000000000000010 /* SettingsRepositoryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
