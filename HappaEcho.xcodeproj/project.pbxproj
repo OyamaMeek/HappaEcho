@@ -11,6 +11,14 @@
 		C10000020000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000020000000000000002 /* ContentView.swift */; };
 		C10000030000000000000003 /* HappaEchoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000040000000000000004 /* HappaEchoTests.swift */; };
 		C10000040000000000000004 /* HappaEchoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000050000000000000005 /* HappaEchoUITests.swift */; };
+		C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000100000000000000010 /* ModelPersistenceTests.swift */; };
+		C10000050000000000000005 /* DomainEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000090000000000000009 /* DomainEnums.swift */; };
+		C10000060000000000000006 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000A0000000000000000A /* Conversation.swift */; };
+		C10000070000000000000007 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000B0000000000000000B /* Message.swift */; };
+		C10000080000000000000008 /* MessageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000C0000000000000000C /* MessageAttachment.swift */; };
+		C10000090000000000000009 /* NotionPageBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000D0000000000000000D /* NotionPageBinding.swift */; };
+		C100000A0000000000000000A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E0000000000000000E /* AppSettings.swift */; };
+		C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F0000000000000000F /* HappaEchoSchema.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,6 +47,14 @@
 		B10000060000000000000006 /* HappaEcho.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappaEcho.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000070000000000000007 /* HappaEchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappaEchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000080000000000000008 /* HappaEchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappaEchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000100000000000000010 /* ModelPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPersistenceTests.swift; sourceTree = "<group>"; };
+		B10000090000000000000009 /* DomainEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainEnums.swift; sourceTree = "<group>"; };
+		B100000A0000000000000000A /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
+		B100000B0000000000000000B /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		B100000C0000000000000000C /* MessageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageAttachment.swift; sourceTree = "<group>"; };
+		B100000D0000000000000000D /* NotionPageBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionPageBinding.swift; sourceTree = "<group>"; };
+		B100000E0000000000000000E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		B100000F0000000000000000F /* HappaEchoSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoSchema.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,9 +106,24 @@
 			isa = PBXGroup;
 			children = (
 				A10000050000000000000005 /* App */,
+				A100000C000000000000000C /* Models */,
 				B10000030000000000000003 /* Info.plist */,
 			);
 			path = HappaEcho;
+			sourceTree = "<group>";
+		};
+		A100000C000000000000000C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10000090000000000000009 /* DomainEnums.swift */,
+				B100000A0000000000000000A /* Conversation.swift */,
+				B100000B0000000000000000B /* Message.swift */,
+				B100000C0000000000000000C /* MessageAttachment.swift */,
+				B100000D0000000000000000D /* NotionPageBinding.swift */,
+				B100000E0000000000000000E /* AppSettings.swift */,
+				B100000F0000000000000000F /* HappaEchoSchema.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		A10000050000000000000005 /* App */ = {
@@ -107,9 +138,18 @@
 		A10000060000000000000006 /* HappaEchoTests */ = {
 			isa = PBXGroup;
 			children = (
+				A100000D000000000000000D /* Models */,
 				B10000040000000000000004 /* HappaEchoTests.swift */,
 			);
 			path = HappaEchoTests;
+			sourceTree = "<group>";
+		};
+		A100000D000000000000000D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10000100000000000000010 /* ModelPersistenceTests.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		A10000070000000000000007 /* HappaEchoUITests */ = {
@@ -251,6 +291,13 @@
 			files = (
 				C10000010000000000000001 /* HappaEchoApp.swift in Sources */,
 				C10000020000000000000002 /* ContentView.swift in Sources */,
+				C10000050000000000000005 /* DomainEnums.swift in Sources */,
+				C10000060000000000000006 /* Conversation.swift in Sources */,
+				C10000070000000000000007 /* Message.swift in Sources */,
+				C10000080000000000000008 /* MessageAttachment.swift in Sources */,
+				C10000090000000000000009 /* NotionPageBinding.swift in Sources */,
+				C100000A0000000000000000A /* AppSettings.swift in Sources */,
+				C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,6 +306,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C10000030000000000000003 /* HappaEchoTests.swift in Sources */,
+				C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
