@@ -111,6 +111,9 @@ final class OpenAICompatibleClient: ChatCompletionService {
             if Self.isCancellation(error) {
                 throw CancellationError()
             }
+            if let chatError = error as? ChatServiceError {
+                throw chatError
+            }
             if let httpError = error as? HTTPError {
                 switch httpError {
                 case .invalidResponse:

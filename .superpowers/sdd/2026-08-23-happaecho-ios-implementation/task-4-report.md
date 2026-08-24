@@ -33,3 +33,12 @@ FULL SCOPE COMMAND: python3 bounded 180s xcodebuild test -project HappaEcho.xcod
 DIFF CHECK: git diff --check passed.
 SELF-REVIEW: Changes are restricted to the requested transport abstraction, client wiring, project registration, streaming test conversion, and the existing Task 4 report. No public ChatCompletionService signature changed.
 CONCERNS: The retained URLProtocol generateTitle fixture is flaky/broken under this simulator execution and blocks full Task 4 green status; streaming architecture and cancellation test are verified.
+
+
+FOLLOW-UP FIX STATUS: COMPLETE
+DIAGNOSIS: The URLProtocol fixture did invoke for title tests (the passing title-content/rate-limit cases established this). `generateTitle` threw ChatServiceError.invalidResponse for an empty completion, but its broad catch did not preserve ChatServiceError and remapped it to network(code: nil). Separately, URLSession materialized POST data as `httpBodyStream` in the URLProtocol request, so reading only `request.httpBody` made the strict non-streaming-body test observe nil. This was fixture representation, not a missing request body.
+FIX: Kept the localized URLProtocol approach. The title fixture now routes handlers by a unique endpoint and reads the request payload from httpBody or httpBodyStream. `generateTitle` now rethrows ChatServiceError before generic transport mapping. Assertions remain unchanged: empty content must produce invalidResponse and the complete encoded non-streaming body is decoded and asserted.
+COMMAND: python3 bounded 180s xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/ServerSentEventParserTests -only-testing:HappaEchoTests/OpenAICompatibleClientTests
+RESULT: TEST SUCCEEDED. 30 tests executed, 0 failures (15 parser and 15 client).
+DIFF CHECK: git diff --check passed.
+SELF-REVIEW: The correction preserves the new injectable streaming architecture and adds only title-fixture isolation/body-stream handling plus the required ChatServiceError preservation.

@@ -16,7 +16,7 @@ final class StubURLProtocol: URLProtocol {
     }
 
     private static let stateLock = NSLock()
-    nonisolated(unsafe) static var handler: ((URLRequest) throws -> Response)?
+    nonisolated(unsafe) static var handlers: [URL: (URLRequest) throws -> Response] = [:]
     nonisolated(unsafe) static var capturedRequest: URLRequest?
     nonisolated(unsafe) static var stopLoadingCount = 0
 
@@ -25,7 +25,7 @@ final class StubURLProtocol: URLProtocol {
 
     override func startLoading() {
         Self.stateLock.lock()
-        let handler = Self.handler
+        let handler = request.url.flatMap { Self.handlers[$0] }
         Self.stateLock.unlock()
         guard let handler else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
@@ -66,7 +66,6 @@ final class OpenAICompatibleClientTests: XCTestCase {
     private static let endpoint = URL(string: "https://example.test/v1/chat/completions")!
 
     override func tearDown() {
-        StubURLProtocol.handler = nil
         StubURLProtocol.capturedRequest = nil
         StubURLProtocol.stopLoadingCount = 0
         super.tearDown()
@@ -80,6 +79,36 @@ final class OpenAICompatibleClientTests: XCTestCase {
             configuration: .init(endpoint: Self.endpoint, apiKey: "sk-test"),
             session: session
         )
+    }
+
+    private func makeTitleClient(handler: @escaping (URLRequest) throws -> StubURLProtocol.Response) -> OpenAICompatibleClient {
+        let endpoint = URL(string: "https://title-\(UUID().uuidString).test/v1/chat/completions")!
+        StubURLProtocol.handlers[endpoint] = handler
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        return OpenAICompatibleClient(
+            configuration: .init(endpoint: endpoint, apiKey: "sk-test"),
+            session: URLSession(configuration: config)
+        )
+    }
+
+    private static func requestBody(from request: URLRequest) -> Data? {
+        if let body = request.httpBody {
+            return body
+        }
+        guard let bodyStream = request.httpBodyStream else { return nil }
+        bodyStream.open()
+        defer { bodyStream.close() }
+        var data = Data()
+        let bufferSize = 1_024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while bodyStream.hasBytesAvailable {
+            let count = bodyStream.read(buffer, maxLength: bufferSize)
+            guard count >= 0 else { return nil }
+            data.append(buffer, count: count)
+        }
+        return data
     }
 
     private func sampleRequest() -> ChatRequest {
@@ -256,19 +285,18 @@ final class OpenAICompatibleClientTests: XCTestCase {
     // MARK: - Title generation
 
     func testGenerateTitleReturnsContent() async throws {
-        StubURLProtocol.handler = { _ in
+        let title = try await makeTitleClient { _ in
             .init(chunks: [Data(#"{"choices":[{"message":{"role":"assistant","content":"标题"}}]}"#.utf8)])
-        }
-        let title = try await makeClient().generateTitle(request: titleRequest())
+        }.generateTitle(request: titleRequest())
         XCTAssertEqual(title, "标题")
     }
 
     func testGenerateTitleMapsRateLimit() async {
-        StubURLProtocol.handler = { _ in
+        let client = makeTitleClient { _ in
             .init(statusCode: 429, chunks: [Data(#"{"error":{"message":"nope"}}"#.utf8)])
         }
         do {
-            _ = try await makeClient().generateTitle(request: titleRequest())
+            _ = try await client.generateTitle(request: titleRequest())
             XCTFail("expected error")
         } catch let error as ChatServiceError {
             XCTAssertEqual(error, .rateLimited(message: "nope"))
@@ -278,11 +306,11 @@ final class OpenAICompatibleClientTests: XCTestCase {
     }
 
     func testGenerateTitleRejectsEmptyContent() async {
-        StubURLProtocol.handler = { _ in
+        let client = makeTitleClient { _ in
             .init(chunks: [Data(#"{"choices":[{"message":{"content":""}}]}"#.utf8)])
         }
         do {
-            _ = try await makeClient().generateTitle(request: titleRequest())
+            _ = try await client.generateTitle(request: titleRequest())
             XCTFail("expected error")
         } catch let error as ChatServiceError {
             XCTAssertEqual(error, .invalidResponse)
@@ -293,11 +321,11 @@ final class OpenAICompatibleClientTests: XCTestCase {
 
     func testGenerateTitleSendsNonStreamingBody() async throws {
         var capturedBody: Data?
-        StubURLProtocol.handler = { request in
-            capturedBody = request.httpBody
+        let client = makeTitleClient { request in
+            capturedBody = Self.requestBody(from: request)
             return .init(chunks: [Data(#"{"choices":[{"message":{"content":"x"}}]}"#.utf8)])
         }
-        _ = try await makeClient().generateTitle(request: titleRequest())
+        _ = try await client.generateTitle(request: titleRequest())
 
         let body = try XCTUnwrap(capturedBody)
         let wire = try JSONDecoder().decode(WireBody.self, from: body)
