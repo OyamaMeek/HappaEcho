@@ -1,9 +1,5 @@
 import Foundation
 
-protocol NotionSyncScheduling: Sendable {
-    func enqueue(messageID: UUID)
-}
-
 struct ChatSessionSettings: Sendable {
     var modelID: String
     var supportsVision: Bool
