@@ -14,6 +14,29 @@ final class AttachmentStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: root)
     }
 
+    func testFileImportPreservesOriginalBytes() async throws {
+        let source = root.appending(path: "source.png")
+        try png.write(to: source)
+        let imported = try await AttachmentStore(rootURL: root).importFile(from: source, conversationID: UUID())
+        XCTAssertEqual(try Data(contentsOf: root.appending(path: imported.relativePath)), png)
+    }
+
+    func testCameraImportPreservesOriginalBytes() async throws {
+        let imported = try await CameraImporter(store: AttachmentStore(rootURL: root)).importCapturedData(png, conversationID: UUID())
+        XCTAssertEqual(try Data(contentsOf: root.appending(path: imported.relativePath)), png)
+    }
+
+    func testDeletionRejectsSymlinkOutsideAttachmentRoot() async throws {
+        let outside = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try png.write(to: outside)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        try FileManager.default.createSymbolicLink(at: root.appending(path: "link.png"), withDestinationURL: outside)
+        let attachment = ImportedAttachment(id: UUID(), originalFileName: "link.png", utType: "public.png", mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: png.count, relativePath: "link.png")
+        do { try await AttachmentStore(rootURL: root).deleteDraft(attachment); XCTFail("Expected containment error") }
+        catch AttachmentStoreError.invalidRelativePath { }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: outside.path))
+    }
+
     func testTransferredDataPreservesOriginalBytesAndStoresRelativePath() async throws {
         let store = AttachmentStore(rootURL: root)
         let conversationID = UUID()

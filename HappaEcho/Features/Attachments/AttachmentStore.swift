@@ -106,9 +106,11 @@ actor AttachmentStore {
     }
 
     private func resolvedURL(for relativePath: String) throws -> URL {
+        let root = rootURL.standardizedFileURL
         guard !relativePath.hasPrefix("/") else { throw AttachmentStoreError.invalidRelativePath }
-        let url = rootURL.appending(path: relativePath).standardizedFileURL
-        guard url.path.hasPrefix(rootURL.standardizedFileURL.path + "/") else { throw AttachmentStoreError.invalidRelativePath }
+        let url = root.appending(path: relativePath).standardizedFileURL
+        guard url.path.hasPrefix(root.path + "/"),
+              url.resolvingSymlinksInPath().path.hasPrefix(root.resolvingSymlinksInPath().path + "/") else { throw AttachmentStoreError.invalidRelativePath }
         return url
     }
 }
