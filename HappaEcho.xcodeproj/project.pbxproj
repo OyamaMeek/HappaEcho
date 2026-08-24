@@ -23,6 +23,12 @@
 		C100000E000000000000000E /* SettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000120000000000000012 /* SettingsRepository.swift */; };
 		C100000F0000000000000000F /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000130000000000000013 /* KeychainServiceTests.swift */; };
 		C10000100000000000000010 /* SettingsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000140000000000000014 /* SettingsRepositoryTests.swift */; };
+		C10000110000000000000011 /* ServerSentEventParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000150000000000000015 /* ServerSentEventParser.swift */; };
+		C10000120000000000000012 /* HTTPError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000160000000000000016 /* HTTPError.swift */; };
+		C10000130000000000000013 /* ChatCompletionTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000170000000000000017 /* ChatCompletionTypes.swift */; };
+		C10000140000000000000014 /* OpenAICompatibleClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000180000000000000018 /* OpenAICompatibleClient.swift */; };
+		C10000150000000000000015 /* ServerSentEventParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000190000000000000019 /* ServerSentEventParserTests.swift */; };
+		C10000160000000000000016 /* OpenAICompatibleClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +69,12 @@
 		B10000120000000000000012 /* SettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRepository.swift; sourceTree = "<group>"; };
 		B10000130000000000000013 /* KeychainServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainServiceTests.swift; sourceTree = "<group>"; };
 		B10000140000000000000014 /* SettingsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRepositoryTests.swift; sourceTree = "<group>"; };
+		B10000150000000000000015 /* ServerSentEventParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSentEventParser.swift; sourceTree = "<group>"; };
+		B10000160000000000000016 /* HTTPError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPError.swift; sourceTree = "<group>"; };
+		B10000170000000000000017 /* ChatCompletionTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionTypes.swift; sourceTree = "<group>"; };
+		B10000180000000000000018 /* OpenAICompatibleClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleClient.swift; sourceTree = "<group>"; };
+		B10000190000000000000019 /* ServerSentEventParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSentEventParserTests.swift; sourceTree = "<group>"; };
+		B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleClientTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -140,8 +152,18 @@
 			isa = PBXGroup;
 			children = (
 				A100000F000000000000000F /* Security */,
+				A10000130000000000000013 /* HTTP */,
 			);
 			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		A10000130000000000000013 /* HTTP */ = {
+			isa = PBXGroup;
+			children = (
+				B10000150000000000000015 /* ServerSentEventParser.swift */,
+				B10000160000000000000016 /* HTTPError.swift */,
+			);
+			path = HTTP;
 			sourceTree = "<group>";
 		};
 		A100000F000000000000000F /* Security */ = {
@@ -156,8 +178,18 @@
 			isa = PBXGroup;
 			children = (
 				A10000110000000000000011 /* Settings */,
+				A10000140000000000000014 /* Chat */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		A10000140000000000000014 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				B10000170000000000000017 /* ChatCompletionTypes.swift */,
+				B10000180000000000000018 /* OpenAICompatibleClient.swift */,
+			);
+			path = Chat;
 			sourceTree = "<group>";
 		};
 		A10000110000000000000011 /* Settings */ = {
@@ -182,9 +214,19 @@
 			children = (
 				A100000D000000000000000D /* Models */,
 				A10000120000000000000012 /* Settings */,
+				A10000150000000000000015 /* Chat */,
 				B10000040000000000000004 /* HappaEchoTests.swift */,
 			);
 			path = HappaEchoTests;
+			sourceTree = "<group>";
+		};
+		A10000150000000000000015 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				B10000190000000000000019 /* ServerSentEventParserTests.swift */,
+				B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */,
+			);
+			path = Chat;
 			sourceTree = "<group>";
 		};
 		A100000D000000000000000D /* Models */ = {
@@ -352,6 +394,10 @@
 				C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */,
 				C100000D000000000000000D /* KeychainService.swift in Sources */,
 				C100000E000000000000000E /* SettingsRepository.swift in Sources */,
+				C10000110000000000000011 /* ServerSentEventParser.swift in Sources */,
+				C10000120000000000000012 /* HTTPError.swift in Sources */,
+				C10000130000000000000013 /* ChatCompletionTypes.swift in Sources */,
+				C10000140000000000000014 /* OpenAICompatibleClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -363,6 +409,8 @@
 				C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */,
 				C100000F0000000000000000F /* KeychainServiceTests.swift in Sources */,
 				C10000100000000000000010 /* SettingsRepositoryTests.swift in Sources */,
+				C10000150000000000000015 /* ServerSentEventParserTests.swift in Sources */,
+				C10000160000000000000016 /* OpenAICompatibleClientTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
