@@ -82,7 +82,7 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         let conversation: Conversation
         let message: Message
         let service = FakeNotionService()
-        let attachmentRootURL: URL
+        let attachmentDirectoryURL: URL?
         let store: SwiftDataNotionSyncModelStore
         let coordinator: NotionSyncCoordinator
 
@@ -93,17 +93,20 @@ final class NotionSyncCoordinatorTests: XCTestCase {
             conversation = Conversation(title: "Chat")
             message = Message(role: .user, content: "Hello", sequence: 0)
             message.conversation = conversation
-            attachmentRootURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)
             if withAttachment {
+                let attachmentRootURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                    .appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)
                 let relativePath = "\(conversation.id.uuidString)/image.png"
                 let fileURL = attachmentRootURL.appending(path: relativePath)
                 try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try Data([0x89]).write(to: fileURL)
+                attachmentDirectoryURL = fileURL.deletingLastPathComponent()
                 let attachment = MessageAttachment(userOrder: 0, originalFileName: "image.png", utType: "public.png", mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: 1, relativePath: relativePath)
                 attachment.message = message
                 message.attachments.append(attachment)
                 context.insert(attachment)
+            } else {
+                attachmentDirectoryURL = nil
             }
             context.insert(settings)
             context.insert(conversation)
@@ -114,7 +117,9 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         }
 
         deinit {
-            try? FileManager.default.removeItem(at: attachmentRootURL)
+            if let attachmentDirectoryURL {
+                try? FileManager.default.removeItem(at: attachmentDirectoryURL)
+            }
         }
 
         func waitFor(_ predicate: @escaping () -> Bool) async throws {
