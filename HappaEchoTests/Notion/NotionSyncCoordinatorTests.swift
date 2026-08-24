@@ -21,7 +21,7 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         try await fixture.waitFor { fixture.message.syncState == .synced }
 
         let operations = await fixture.service.recordedOperations()
-        XCTAssertEqual(operations.filter { $0 != "update:page" }, ["create:database", "list:page", "list:page", "append:page"])
+        XCTAssertEqual(operations.filter { $0 != "update:page" }, ["create:database", "list:page", "append:page"])
         XCTAssertEqual(fixture.conversation.activePageBinding?.databaseID, "database")
         XCTAssertEqual(fixture.message.nextNotionBatchIndex, 1)
         XCTAssertEqual(fixture.message.confirmedBatchIDs, ["0"])
@@ -66,7 +66,7 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         try await fixture.waitFor { fixture.message.syncState == .synced }
 
         let operations = await fixture.service.recordedOperations()
-        XCTAssertEqual(operations.filter { $0 != "update:page" }, ["create:database", "list:page", "list:page", "append:page", "upload:create:image.png", "upload:send:upload", "upload:complete:upload", "list:page", "append:page"])
+        XCTAssertEqual(operations.filter { $0 != "update:page" }, ["create:database", "list:page", "append:page", "upload:create:image.png", "upload:send:upload", "upload:complete:upload", "list:page", "append:page"])
         let attachment = try XCTUnwrap(fixture.message.attachments.first)
         XCTAssertEqual(attachment.notionUploadID, "upload")
         XCTAssertNotNil(attachment.notionUploadSentAt)

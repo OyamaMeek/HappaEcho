@@ -331,10 +331,6 @@ actor NotionSyncCoordinator {
             let batches = try formatter.batches(for: model)
             for batch in batches where batch.index >= message.nextBatchIndex {
                 try Task.checkCancellation()
-                if let remoteBlockIDs = try await reconciledBlockIDs(marker: batch.marker, pageID: pageID) {
-                    try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: remoteBlockIDs)
-                    continue
-                }
                 let blockIDs = try await appendBatch(pageID: pageID, batch: batch)
                 try Task.checkCancellation()
                 try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: blockIDs)
