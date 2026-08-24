@@ -16,7 +16,9 @@ final class NotionClientTests: XCTestCase {
         let endpoint = baseURL
         StubURLProtocol.handlers[endpoint.appending(path: "pages")] = handler
         StubURLProtocol.handlers[endpoint.appending(path: "blocks/page/children")] = handler
-        StubURLProtocol.handlers[URL(string: "https://notion.example.test/v1/blocks/page/children?start_cursor=cursor")!] = handler
+        var cursorComponents = URLComponents(url: endpoint.appending(path: "blocks/page/children"), resolvingAgainstBaseURL: false)!
+        cursorComponents.queryItems = [URLQueryItem(name: "start_cursor", value: "opaque +/=?&")]
+        StubURLProtocol.handlers[cursorComponents.url!] = handler
         StubURLProtocol.handlers[URL(string: "https://notion.example.test/v1/blocks/page/children?start_cursor=cursor")!.appending(queryItems: [])] = handler
         StubURLProtocol.handlers[endpoint.appending(path: "file_uploads")] = handler
         StubURLProtocol.handlers[endpoint.appending(path: "file_uploads/upload/send")] = handler
@@ -54,8 +56,10 @@ final class NotionClientTests: XCTestCase {
             request = captured
             return .init(chunks: [Data(#"{"results":[{"id":"block","type":"paragraph","paragraph":{"rich_text":[{"plain_text":"marker"}]}}],"has_more":true,"next_cursor":"next"}"#.utf8)])
         }
-        let page = try await client.listBlocks(pageID: "page", cursor: "cursor")
-        XCTAssertEqual(request?.url?.query, "start_cursor=cursor")
+        let cursor = "opaque +/=?&"
+        let page = try await client.listBlocks(pageID: "page", cursor: cursor)
+        let components = try XCTUnwrap(URLComponents(url: request!.url!, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.queryItems, [URLQueryItem(name: "start_cursor", value: cursor)])
         XCTAssertTrue(page.hasMore)
         XCTAssertEqual(page.nextCursor, "next")
         XCTAssertEqual(page.blocks.first?.plainText, "marker")
@@ -73,7 +77,7 @@ final class NotionClientTests: XCTestCase {
             }
         }
         let staged = try await client.createFileUpload(.init(filename: "image.png", contentType: "image/png"))
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("image-\(UUID().uuidString).png")
         try Data("image".utf8).write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
         try await client.sendFile(uploadID: staged.id, fileURL: url)
@@ -81,12 +85,19 @@ final class NotionClientTests: XCTestCase {
         XCTAssertEqual(requests.map { $0.url!.path }, ["/v1/file_uploads", "/v1/file_uploads/upload/send", "/v1/file_uploads/upload/complete"])
         XCTAssertTrue(requests.allSatisfy { $0.httpMethod == "POST" && $0.value(forHTTPHeaderField: "Authorization") == "Bearer secret" && $0.value(forHTTPHeaderField: "Notion-Version") == NotionClient.notionVersion })
         XCTAssertEqual(requests[0].value(forHTTPHeaderField: "Content-Type"), "application/json")
-        XCTAssertEqual(requests[1].value(forHTTPHeaderField: "Content-Type"), "application/octet-stream")
+        let sendContentType = try XCTUnwrap(requests[1].value(forHTTPHeaderField: "Content-Type"))
+        XCTAssertTrue(sendContentType.hasPrefix("multipart/form-data; boundary="))
         XCTAssertEqual(requests[2].value(forHTTPHeaderField: "Content-Type"), "application/json")
         let createBody = try XCTUnwrap(Self.requestBody(from: requests[0]))
         let createJSON = try XCTUnwrap(try JSONSerialization.jsonObject(with: createBody) as? [String: String])
         XCTAssertEqual(createJSON, ["filename": "image.png", "content_type": "image/png"])
-        XCTAssertEqual(Self.requestBody(from: requests[1]), Data("image".utf8))
+        let sendBody = try XCTUnwrap(Self.requestBody(from: requests[1]))
+        let sendString = try XCTUnwrap(String(data: sendBody, encoding: .utf8))
+        let boundary = String(sendContentType.dropFirst("multipart/form-data; boundary=".count))
+        XCTAssertTrue(sendString.contains("--\(boundary)\r\n"))
+        XCTAssertTrue(sendString.contains("Content-Disposition: form-data; name=\"file\"; filename=\"\(url.lastPathComponent)\""))
+        XCTAssertTrue(sendString.contains("Content-Type: image/png"))
+        XCTAssertTrue(sendString.contains("\r\n\r\nimage\r\n--\(boundary)--\r\n"))
         XCTAssertNil(Self.requestBody(from: requests[2]))
         XCTAssertEqual(completed.fileURL, URL(string: "https://files.test/image"))
     }

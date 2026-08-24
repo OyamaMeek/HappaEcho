@@ -76,7 +76,14 @@ final class NotionBlockFormatterTests: XCTestCase {
             "happaecho-message:22222222-2222-2222-2222-222222222222:batch:0",
             "happaecho-message:22222222-2222-2222-2222-222222222222:batch:1",
         ])
-        XCTAssertEqual(batches.map { $0.blocks.count }, [5, 5])
+        XCTAssertEqual(batches.map { $0.blocks.count }, [5, 2])
         XCTAssertEqual(batches.flatMap(\.blocks).filter { $0.markerMessageID != nil }.count, 2)
+    }
+    func testNeverExceedsConfiguredBatchLimitBelowMetadataCount() {
+        let formatter = NotionBlockFormatter(maxBlocksPerBatch: 2)
+        let message = Message(role: .user, content: "# one\n# two", sequence: 0)
+        let batches = formatter.batches(for: message)
+        XCTAssertTrue(batches.allSatisfy { $0.blocks.count <= 2 })
+        XCTAssertEqual(batches.flatMap(\.blocks).filter { $0.markerMessageID == message.id }.count, batches.count)
     }
 }

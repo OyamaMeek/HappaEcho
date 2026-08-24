@@ -21,12 +21,19 @@ struct NotionBlockFormatter: Sendable {
 
     func batches(for message: Message) -> [NotionBlockBatch] {
         let content = contentBlocks(message.content)
-        let capacity = max(1, maxBlocksPerBatch - 3)
-        let groups = stride(from: 0, to: content.count, by: capacity).map { Array(content[$0..<min($0 + capacity, content.count)]) }
-        let nonempty = groups.isEmpty ? [[]] : groups
-        return nonempty.enumerated().map { index, group in
-            NotionBlockBatch(index: index, marker: marker(for: message.id, index: index), blocks: [.init(kind: .paragraph, richText: [.init(content: marker(for: message.id, index: index))], markerMessageID: message.id), .paragraph(message.role == .assistant ? "Assistant" : "User"), .paragraph(ISO8601DateFormatter().string(from: message.createdAt))] + group)
+        var batches: [NotionBlockBatch] = []
+        var offset = 0
+        var index = 0
+        while offset < content.count || batches.isEmpty {
+            let metadata: [NotionBlock] = index == 0 ? [.paragraph("\(message.role == .assistant ? "Assistant" : "User") · \(ISO8601DateFormatter().string(from: message.createdAt))")] : []
+            let capacity = max(0, maxBlocksPerBatch - 1 - metadata.count)
+            let group = capacity > 0 ? Array(content[offset..<min(offset + capacity, content.count)]) : []
+            let marker = marker(for: message.id, index: index)
+            batches.append(NotionBlockBatch(index: index, marker: marker, blocks: [.init(kind: .paragraph, richText: [.init(content: marker)], markerMessageID: message.id)] + metadata + group))
+            if capacity == 0 { index += 1; continue }
+            offset += group.count; index += 1
         }
+        return batches
     }
 
     private func marker(for id: UUID, index: Int) -> String { "happaecho-message:\(id.uuidString.lowercased()):batch:\(index)" }
