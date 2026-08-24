@@ -36,6 +36,10 @@ final class TitleGenerationCoordinator {
             return
         }
 
+        // Establish the deterministic title before starting the request. This
+        // remains visible if the provider fails and is protected by the same
+        // manual-edit guard as generated output.
+        applyFallback(firstUser.content, to: conversation)
         conversation.titleGenerationAttempted = true
         try? modelContext.save()
         let token = UUID()

@@ -39,6 +39,15 @@ final class TitleGenerationCoordinatorTests: XCTestCase {
         XCTAssertFalse(fixture.conversation.title.hasPrefix("\""))
     }
 
+    func testCompletedGenerationFailurePreservesFallbackAndEnqueuesOnce() async throws {
+        let fixture = try Fixture()
+        fixture.service.shouldThrow = true
+        fixture.add(.user, "Fallback title")
+        fixture.add(.assistant, "answer", state: .completed)
+        await fixture.coordinator.generateIfEligible(for: fixture.conversation)
+        XCTAssertEqual(fixture.conversation.title, "Fallback title")
+        XCTAssertEqual(fixture.scheduler.metadataUpdates, [fixture.conversation.id])
+    }
     func testFailureKeepsFallbackAndManualEditWinsDuringGeneration() async throws {
         let fixture = try Fixture()
         fixture.service.block = true
@@ -53,16 +62,20 @@ final class TitleGenerationCoordinatorTests: XCTestCase {
         XCTAssertTrue(fixture.conversation.isTitleManuallyEdited)
     }
 
+
     private final class Fixture {
         let conversation = Conversation()
         let service = FakeTitleService()
+        let scheduler = FakeScheduler()
         let context: ModelContext
         let coordinator: TitleGenerationCoordinator
+
         @MainActor init() throws {
             let container = try ModelContainer(for: Conversation.self, Message.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             context = ModelContext(container)
             context.insert(conversation)
-            coordinator = TitleGenerationCoordinator(service: service, modelContext: context, syncScheduler: FakeScheduler())
+            coordinator = TitleGenerationCoordinator(service: service, modelContext: context, syncScheduler: scheduler)
+
         }
         @discardableResult func add(_ role: MessageRole, _ content: String, state: GenerationState = .none) -> Message {
             let message = Message(role: role, content: content, sequence: conversation.messages.count, generationState: state)
@@ -71,12 +84,15 @@ final class TitleGenerationCoordinatorTests: XCTestCase {
     }
 
     private final class FakeTitleService: ChatCompletionService, @unchecked Sendable {
-        var result = "Model title"; var block = false; private var requested = false; private var continuation: CheckedContinuation<Void, Never>?
+        var result = "Model title"; var block = false; var shouldThrow = false; private var requested = false; private var continuation: CheckedContinuation<Void, Never>?
         var requests = [TitleRequest]()
         func stream(request: ChatRequest) -> AsyncThrowingStream<String, Error> { AsyncThrowingStream { $0.finish() } }
-        func generateTitle(request: TitleRequest) async throws -> String { requests.append(request); requested = true; continuation?.resume(); continuation = nil; if block { await withCheckedContinuation { continuation = $0 } }; return result }
+        func generateTitle(request: TitleRequest) async throws -> String { requests.append(request); requested = true; continuation?.resume(); continuation = nil; if shouldThrow { throw ChatServiceError.serverError(message: "failed") }; if block { await withCheckedContinuation { continuation = $0 } }; return result }
         func waitUntilRequested() async { while !requested { await Task.yield() } }
         func resume() { continuation?.resume(); continuation = nil }
     }
-    private struct FakeScheduler: TitleSyncScheduling { func enqueueMetadata(conversationID: UUID) {} }
+    private final class FakeScheduler: TitleSyncScheduling {
+        var metadataUpdates = [UUID]()
+        func enqueueMetadata(conversationID: UUID) { metadataUpdates.append(conversationID) }
+    }
 }
