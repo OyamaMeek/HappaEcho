@@ -2,6 +2,17 @@ import Foundation
 import PhotosUI
 import UniformTypeIdentifiers
 
+protocol PhotoDataLoading: AnyObject {
+    var suggestedName: String? { get }
+    var typeIdentifiers: [String] { get }
+    func loadData(typeIdentifier: String, completion: @escaping (Data?, Error?) -> Void)
+}
+
+extension NSItemProvider: PhotoDataLoading {
+    var typeIdentifiers: [String] { registeredTypeIdentifiers }
+    func loadData(typeIdentifier: String, completion: @escaping (Data?, Error?) -> Void) { loadDataRepresentation(forTypeIdentifier: typeIdentifier, completionHandler: completion) }
+}
+
 @MainActor
 final class PhotoLibraryImporter: NSObject {
     var progress: ((Double) -> Void)?
@@ -17,12 +28,15 @@ final class PhotoLibraryImporter: NSObject {
     }
 
     func importResult(_ result: PHPickerResult, conversationID: UUID) async throws -> ImportedAttachment {
+        return try await importProvider(result.itemProvider, conversationID: conversationID)
+    }
+
+    func importProvider(_ provider: any PhotoDataLoading, conversationID: UUID) async throws -> ImportedAttachment {
         progress?(0)
-        let provider = result.itemProvider
-        guard let typeIdentifier = provider.registeredTypeIdentifiers.first(where: { UTType($0)?.conforms(to: .image) == true }),
+        guard let typeIdentifier = provider.typeIdentifiers.first(where: { UTType($0)?.conforms(to: .image) == true }),
               let type = UTType(typeIdentifier) else { throw AttachmentStoreError.invalidImage }
         let data: Data = try await withCheckedThrowingContinuation { continuation in
-            provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, error in
+            provider.loadData(typeIdentifier: typeIdentifier) { data, error in
                 if let error { continuation.resume(throwing: error) }
                 else if let data { continuation.resume(returning: data) }
                 else { continuation.resume(throwing: AttachmentStoreError.unreadableFile) }

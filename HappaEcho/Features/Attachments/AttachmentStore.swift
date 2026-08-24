@@ -23,19 +23,31 @@ enum AttachmentStoreError: Error, Equatable {
     case unreadableFile
 }
 
+protocol SecurityScopedResourceAccessing: Sendable {
+    func acquire(_ url: URL) -> Bool
+    func release(_ url: URL)
+}
+
+struct URLSecurityScope: SecurityScopedResourceAccessing {
+    func acquire(_ url: URL) -> Bool { url.startAccessingSecurityScopedResource() }
+    func release(_ url: URL) { url.stopAccessingSecurityScopedResource() }
+}
+
 actor AttachmentStore {
     let rootURL: URL
     private let fileManager: FileManager
+    private let securityScope: any SecurityScopedResourceAccessing
 
-    init(rootURL: URL? = nil, fileManager: FileManager = .default) {
+    init(rootURL: URL? = nil, fileManager: FileManager = .default, securityScope: any SecurityScopedResourceAccessing = URLSecurityScope()) {
         self.fileManager = fileManager
+        self.securityScope = securityScope
         self.rootURL = rootURL ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)
     }
 
     func importFile(from sourceURL: URL, conversationID: UUID) async throws -> ImportedAttachment {
-        let accessed = sourceURL.startAccessingSecurityScopedResource()
-        defer { if accessed { sourceURL.stopAccessingSecurityScopedResource() } }
+        let accessed = securityScope.acquire(sourceURL)
+        defer { if accessed { securityScope.release(sourceURL) } }
         let name = sourceURL.lastPathComponent.isEmpty ? "image" : sourceURL.lastPathComponent
         let contentType = UTType(filenameExtension: sourceURL.pathExtension) ?? .image
         let destination = try destinationURL(conversationID: conversationID, name: name, contentType: contentType)
