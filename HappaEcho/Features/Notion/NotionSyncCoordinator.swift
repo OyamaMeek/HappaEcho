@@ -318,12 +318,11 @@ actor NotionSyncCoordinator {
                     try await store.resetPageCheckpoints(conversationID: message.conversationID)
                     let historicalIDs = try await store.messageIDs(conversationID: message.conversationID)
                     var queue = queues[message.conversationID, default: []]
-                    for historicalID in historicalIDs.reversed() where historicalID != messageID && !queue.contains(historicalID) {
+                    for historicalID in historicalIDs.reversed() where !queue.contains(historicalID) {
                         queue.insert(historicalID, at: 0)
                     }
                     queues[message.conversationID] = queue
-                    guard let refreshed = try await store.message(id: messageID) else { return }
-                    message = refreshed
+                    return
                 }
                 pageID = page.id
             }
