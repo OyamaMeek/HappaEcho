@@ -45,6 +45,7 @@ protocol NotionSyncModelStore: AnyObject {
     func message(id: UUID) throws -> NotionSyncMessage?
     func attachments(messageID: UUID) throws -> [NotionSyncAttachment]
     func conversation(id: UUID) throws -> NotionSyncConversation?
+    func pageProperties(conversationID: UUID) throws -> [String: NotionProperty]
     func pendingMessageIDs() throws -> [UUID]
     func markSyncing(messageID: UUID) throws
     func bindPage(conversationID: UUID, databaseID: String, pageID: String) throws
@@ -89,6 +90,11 @@ final class SwiftDataNotionSyncModelStore: NotionSyncModelStore {
         guard let conversation = try modelContext.fetch(FetchDescriptor<Conversation>()).first(where: { $0.id == id }) else { return nil }
         let binding = conversation.activePageBinding
         return .init(id: conversation.id, title: conversation.title, createdAt: conversation.createdAt, updatedAt: conversation.updatedAt, modelID: conversation.modelID, pageID: binding?.pageID, pageDatabaseID: binding?.databaseID)
+    }
+
+    func pageProperties(conversationID: UUID) throws -> [String: NotionProperty] {
+        guard let conversation = try modelContext.fetch(FetchDescriptor<Conversation>()).first(where: { $0.id == conversationID }) else { return [:] }
+        return NotionBlockFormatter().pageProperties(for: conversation)
     }
 
     func pendingMessageIDs() throws -> [UUID] {
@@ -177,7 +183,9 @@ actor NotionSyncCoordinator {
     private let sleeper: any NotionSyncSleeping
     private let formatter = NotionBlockFormatter()
     private var queues: [UUID: [UUID]] = [:]
+    private var metadataQueues: Set<UUID> = []
     private var workers: [UUID: Task<Void, Never>] = [:]
+    private var workerTokens: [UUID: UUID] = [:]
 
     init(service: any NotionService, store: any NotionSyncModelStore, sleeper: any NotionSyncSleeping = ImmediateNotionSyncSleeper()) {
         self.service = service
@@ -194,6 +202,7 @@ actor NotionSyncCoordinator {
     }
 
     func enqueueMetadata(conversationID: UUID) async {
+        metadataQueues.insert(conversationID)
         startWorkerIfNeeded(for: conversationID)
     }
 
@@ -206,22 +215,48 @@ actor NotionSyncCoordinator {
         workers[conversationID]?.cancel()
         workers[conversationID] = nil
         queues[conversationID] = []
+        metadataQueues.remove(conversationID)
     }
 
     private func startWorkerIfNeeded(for conversationID: UUID) {
         guard workers[conversationID] == nil else { return }
+        let token = UUID()
+        workerTokens[conversationID] = token
         workers[conversationID] = Task { [weak self] in
-            await self?.drain(conversationID: conversationID)
+            await self?.drain(conversationID: conversationID, token: token)
         }
     }
 
-    private func drain(conversationID: UUID) async {
-        defer { workers[conversationID] = nil }
+    private func drain(conversationID: UUID, token: UUID) async {
+        defer {
+            if workerTokens[conversationID] == token {
+                workers[conversationID] = nil
+                workerTokens[conversationID] = nil
+            }
+        }
         while !Task.isCancelled {
+            if metadataQueues.remove(conversationID) != nil {
+                await syncMetadata(conversationID: conversationID)
+                continue
+            }
             guard var queue = queues[conversationID], !queue.isEmpty else { return }
             let messageID = queue.removeFirst()
             queues[conversationID] = queue
             await sync(messageID: messageID)
+        }
+    }
+
+    private func syncMetadata(conversationID: UUID) async {
+        do {
+            let config = try await store.configuration()
+            guard config.enabled, let databaseID = config.databaseID, !databaseID.isEmpty,
+                  let conversation = try await store.conversation(id: conversationID),
+                  conversation.pageDatabaseID == databaseID,
+                  let pageID = conversation.pageID else { return }
+            let properties = try await store.pageProperties(conversationID: conversationID)
+            try await attempt { try await self.service.updatePageProperties(pageID: pageID, properties: properties) }
+        } catch {
+            // Metadata backup is retried on the next coalesced schedule event.
         }
     }
 
@@ -258,9 +293,9 @@ actor NotionSyncCoordinator {
                     try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: remoteBlockIDs)
                     continue
                 }
-                let ids = try await attempt { try await self.service.appendBlocks(pageID: pageID, blocks: batch.blocks) }
+                let blockIDs = try await appendBatch(pageID: pageID, batch: batch)
                 try Task.checkCancellation()
-                try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: ids)
+                try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: blockIDs)
             }
             for attachment in try await store.attachments(messageID: messageID) where attachment.imageBlockID == nil {
                 try Task.checkCancellation()
@@ -280,7 +315,7 @@ actor NotionSyncCoordinator {
                     let completed = try await attempt { try await self.service.completeFileUpload(uploadID: uploadID) }
                     try await store.saveAttachmentRemoteURL(attachmentID: attachment.id, remoteURL: completed.fileURL?.absoluteString)
                 }
-                let imageBlockIDs = try await attempt { try await self.service.appendBlocks(pageID: pageID, blocks: [.init(kind: .image(fileUploadID: uploadID), richText: [], markerMessageID: nil)]) }
+                let imageBlockIDs = try await appendImageBlock(pageID: pageID, uploadID: uploadID, attachmentID: attachment.id)
                 guard let imageBlockID = imageBlockIDs.first else { throw NotionError.invalidResponse }
                 try await store.completeAttachment(attachmentID: attachment.id, imageBlockID: imageBlockID)
             }
@@ -289,6 +324,54 @@ actor NotionSyncCoordinator {
         } catch {
             try? await store.markFailed(messageID: messageID, error: error.localizedDescription)
         }
+    }
+
+    private func appendImageBlock(pageID: String, uploadID: String, attachmentID: UUID) async throws -> [String] {
+        let marker = "happaecho-attachment:\(attachmentID.uuidString.lowercased())"
+        for index in 0..<3 {
+            if let blockIDs = try await reconciledBlockIDs(marker: marker, pageID: pageID) {
+                return blockIDs
+            }
+            do {
+                return try await service.appendBlocks(pageID: pageID, blocks: [.init(kind: .image(fileUploadID: uploadID, marker: marker), richText: [], markerMessageID: nil)])
+            } catch {
+                guard let notionError = error as? NotionError,
+                      isTransient(notionError),
+                      index < 2 else { throw error }
+                let delay: TimeInterval
+                if case let .rateLimited(retryAfter) = notionError {
+                    delay = retryAfter ?? pow(2, Double(index))
+                } else {
+                    delay = pow(2, Double(index))
+                }
+                try await sleeper.sleep(for: delay)
+            }
+        }
+        throw NotionError.network(code: nil)
+    }
+
+    private func appendBatch(pageID: String, batch: NotionBlockBatch) async throws -> [String] {
+        var delay: TimeInterval = 1
+        var lastError: Error?
+        for index in 0..<3 {
+            if let blockIDs = try await reconciledBlockIDs(marker: batch.marker, pageID: pageID) {
+                return blockIDs
+            }
+            do {
+                return try await service.appendBlocks(pageID: pageID, blocks: batch.blocks)
+            } catch {
+                lastError = error
+                guard let notionError = error as? NotionError,
+                      isTransient(notionError),
+                      index < 2 else { throw error }
+                if case let .rateLimited(retryAfter) = notionError {
+                    delay = max(delay, retryAfter ?? 0)
+                }
+                try await sleeper.sleep(for: delay)
+                delay *= 2
+            }
+        }
+        throw lastError ?? NotionError.network(code: nil)
     }
 
     private func reconciledBlockIDs(marker: String, pageID: String) async throws -> [String]? {

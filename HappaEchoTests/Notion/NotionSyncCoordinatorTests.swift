@@ -21,7 +21,7 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         try await fixture.waitFor { fixture.message.syncState == .synced }
 
         let operations = await fixture.service.recordedOperations()
-        XCTAssertEqual(operations, ["create:database", "list:page", "append:page"])
+        XCTAssertEqual(operations, ["create:database", "list:page", "list:page", "append:page"])
         XCTAssertEqual(fixture.conversation.activePageBinding?.databaseID, "database")
         XCTAssertEqual(fixture.message.nextNotionBatchIndex, 1)
         XCTAssertEqual(fixture.message.confirmedBatchIDs, ["0"])
@@ -44,6 +44,21 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(fixture.message.confirmedBlockIDs, ["remote-marker"])
     }
 
+    func testMetadataWorkUpdatesExistingPageProperties() async throws {
+        let fixture = try Fixture(enabled: true)
+        fixture.conversation.bindNotionPage(databaseID: "database", pageID: "page")
+        try fixture.context.save()
+
+        await fixture.coordinator.enqueueMetadata(conversationID: fixture.conversation.id)
+        for _ in 0..<100 {
+            if await fixture.service.recordedOperations().contains("update:page") { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        let operations = await fixture.service.recordedOperations()
+        XCTAssertEqual(operations, ["update:page"])
+    }
+
     func testSyncUploadsAttachmentAndAppendsImageBlock() async throws {
         let fixture = try Fixture(enabled: true, withAttachment: true)
 
@@ -51,7 +66,7 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         try await fixture.waitFor { fixture.message.syncState == .synced }
 
         let operations = await fixture.service.recordedOperations()
-        XCTAssertEqual(operations, ["create:database", "list:page", "append:page", "upload:create:image.png", "upload:send:upload", "upload:complete:upload", "append:page"])
+        XCTAssertEqual(operations, ["create:database", "list:page", "list:page", "append:page", "upload:create:image.png", "upload:send:upload", "upload:complete:upload", "list:page", "append:page"])
         let attachment = try XCTUnwrap(fixture.message.attachments.first)
         XCTAssertEqual(attachment.notionUploadID, "upload")
         XCTAssertNotNil(attachment.notionUploadSentAt)
@@ -113,7 +128,9 @@ actor FakeNotionService: NotionService {
         return NotionPage(id: "page", url: nil)
     }
 
-    func updatePageProperties(pageID: String, properties: [String: NotionProperty]) async throws {}
+    func updatePageProperties(pageID: String, properties: [String: NotionProperty]) async throws {
+        operations.append("update:\(pageID)")
+    }
 
     func appendBlocks(pageID: String, blocks: [NotionBlock]) async throws -> [String] {
         operations.append("append:\(pageID)")

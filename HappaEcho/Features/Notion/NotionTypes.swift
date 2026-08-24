@@ -24,7 +24,7 @@ struct NotionBlockBatch: Equatable, Sendable { var index: Int; var marker: Strin
 
 struct NotionRichText: Codable, Equatable, Sendable { var content: String }
 
-enum NotionBlockKind: Equatable, Sendable { case paragraph, heading(level: Int), bulletedListItem, quote, code(language: String), image(fileUploadID: String) }
+enum NotionBlockKind: Equatable, Sendable { case paragraph, heading(level: Int), bulletedListItem, quote, code(language: String), image(fileUploadID: String, marker: String) }
 
 struct NotionBlock: Equatable, Sendable {
     var kind: NotionBlockKind

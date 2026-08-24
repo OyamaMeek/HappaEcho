@@ -57,7 +57,7 @@ final class NotionClientTests: XCTestCase {
 
         _ = try await client.appendBlocks(
             pageID: "page",
-            blocks: [.init(kind: .image(fileUploadID: "upload-id"), richText: [], markerMessageID: nil)]
+            blocks: [.init(kind: .image(fileUploadID: "upload-id", marker: "happaecho-attachment:marker"), richText: [], markerMessageID: nil)]
         )
 
         let request = try XCTUnwrap(StubURLProtocol.capturedRequest)
@@ -68,7 +68,8 @@ final class NotionClientTests: XCTestCase {
         let image = try XCTUnwrap(child["image"] as? [String: Any])
         XCTAssertEqual(image["type"] as? String, "file_upload")
         XCTAssertEqual((image["file_upload"] as? [String: String])?["id"], "upload-id")
-        XCTAssertEqual((image["caption"] as? [Any])?.count, 0)
+        let caption = try XCTUnwrap(image["caption"] as? [[String: Any]])
+        XCTAssertEqual((caption.first?["text"] as? [String: String])?["content"], "happaecho-attachment:marker")
     }
 
     func testListBlocksPassesCursorAndDecodesPagination() async throws {
