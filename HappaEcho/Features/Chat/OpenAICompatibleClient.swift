@@ -47,25 +47,29 @@ final class OpenAICompatibleClient: ChatCompletionService {
                     var response: HTTPURLResponse?
                     var body = Data()
                     var parser = ServerSentEventParser()
-                    for try await event in transport.events {
-                        try Task.checkCancellation()
-                        switch event {
-                        case .response(let value):
-                            guard let http = value as? HTTPURLResponse else { throw HTTPError.invalidResponse }
-                            response = http
-                        case .data(let data):
-                            guard let http = response else { throw HTTPError.invalidResponse }
-                            if !(200..<300).contains(http.statusCode) {
-                                body.append(data)
-                            } else {
-                                for byte in data {
-                                    if try process(parser.append(byte), continuation: continuation) {
-                                        transport.cancel()
-                                        return
+                    try await withTaskCancellationHandler {
+                        for try await event in transport.events {
+                            try Task.checkCancellation()
+                            switch event {
+                            case .response(let value):
+                                guard let http = value as? HTTPURLResponse else { throw HTTPError.invalidResponse }
+                                response = http
+                            case .data(let data):
+                                guard let http = response else { throw HTTPError.invalidResponse }
+                                if !(200..<300).contains(http.statusCode) {
+                                    body.append(data)
+                                } else {
+                                    for byte in data {
+                                        if try process(parser.append(byte), continuation: continuation) {
+                                            transport.cancel()
+                                            return
+                                        }
                                     }
                                 }
                             }
                         }
+                    } onCancel: {
+                        transport.cancel()
                     }
                     guard let http = response else { throw HTTPError.invalidResponse }
                     guard (200..<300).contains(http.statusCode) else {

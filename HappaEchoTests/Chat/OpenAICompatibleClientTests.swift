@@ -50,6 +50,7 @@ final class StubURLProtocol: URLProtocol {
 
     override func stopLoading() {
         Self.stopLoadingCount += 1
+        client?.urlProtocolDidFinishLoading(self)
     }
 }
 
@@ -295,6 +296,7 @@ final class OpenAICompatibleClientTests: XCTestCase {
         _ = await iterator.next()
 
         task.cancel()
+        await Task.yield()
         let result = await task.result
 
         guard case .success(let (outcome, pieces)) = result else {
