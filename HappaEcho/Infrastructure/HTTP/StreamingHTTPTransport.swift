@@ -50,9 +50,9 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
     }
 
     func cancel() {
-        finish(throwing: CancellationError())
+        let session = finish(throwing: CancellationError())
         task.cancel()
-        delegateSession?.invalidateAndCancel()
+        session?.invalidateAndCancel()
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
@@ -65,8 +65,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        finish(throwing: error)
-        delegateSession = nil
+        _ = finish(throwing: error)
     }
 
     private func yield(_ event: StreamingHTTPEvent) {
@@ -76,15 +75,18 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
         continuation?.yield(event)
     }
 
-    private func finish(throwing error: Error? = nil) {
+    @discardableResult
+    private func finish(throwing error: Error? = nil) -> URLSession? {
         stateLock.lock()
         guard !finished else {
             stateLock.unlock()
-            return
+            return nil
         }
         finished = true
         let continuation = continuation
         self.continuation = nil
+        let session = delegateSession
+        delegateSession = nil
         stateLock.unlock()
 
         if let error {
@@ -92,5 +94,6 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
         } else {
             continuation?.finish()
         }
+        return session
     }
 }

@@ -67,7 +67,6 @@ final class OpenAICompatibleClient: ChatCompletionService {
                                 } else {
                                     for byte in data {
                                         if try process(parser.append(byte), continuation: continuation) {
-                                            transport.cancel()
                                             return
                                         }
                                     }
@@ -227,14 +226,6 @@ final class OpenAICompatibleClient: ChatCompletionService {
             return .network(code: urlError.code.rawValue)
         }
         return .network(code: nil)
-    }
-
-    private static func readProviderMessage(from bytes: URLSession.AsyncBytes) async throws -> String? {
-        var data = Data()
-        for try await byte in bytes {
-            data.append(byte)
-        }
-        return parseProviderMessage(data)
     }
 
     private static func parseProviderMessage(_ data: Data) -> String? {

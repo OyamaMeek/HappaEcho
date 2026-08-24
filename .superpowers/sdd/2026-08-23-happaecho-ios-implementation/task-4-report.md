@@ -42,3 +42,12 @@ COMMAND: python3 bounded 180s xcodebuild test -project HappaEcho.xcodeproj -sche
 RESULT: TEST SUCCEEDED. 30 tests executed, 0 failures (15 parser and 15 client).
 DIFF CHECK: git diff --check passed.
 SELF-REVIEW: The correction preserves the new injectable streaming architecture and adds only title-fixture isolation/body-stream handling plus the required ChatServiceError preservation.
+
+
+REVIEW FIX ROUND 1: COMPLETE
+FINDINGS ADDRESSED: URLSessionStreamingHTTPTask now reads, clears, and returns delegateSession under its existing terminal-state NSLock; cancel invalidates only the session captured by the winning terminal transition, while delegate completion shares the same finish path. This prevents unsynchronized delegateSession access between cancellation and delegate completion. Removed the explicit transport.cancel() on [DONE], because finishing the public continuation invokes onTermination and cancels the producer once. Removed unused readProviderMessage.
+TEST HARDENING: FakeStreamingHTTPTask now protects cancellation count and request recording with NSLock. Added testDoneTerminationCancelsTransportOnce, which delivers [DONE] and asserts exactly one cancellation; cancellation test retains the exact-one assertion. A direct production URLSession delegate race test is not practical without exposing the private task/delegate callbacks, so correctness is enforced through the shared one-shot lock-protected terminal helper and public behavior tests.
+COMMAND: python3 bounded 180s xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/ServerSentEventParserTests -only-testing:HappaEchoTests/OpenAICompatibleClientTests
+RESULT: TEST SUCCEEDED. 31 tests executed, 0 failures (15 parser, 16 client).
+DIFF CHECK: git diff --check passed.
+SELF-REVIEW: Only Task 4 transport/client tests and report changed. Both competing terminal paths take the same lock before accessing delegateSession; [DONE] has one cancellation owner; fake test state is synchronized.

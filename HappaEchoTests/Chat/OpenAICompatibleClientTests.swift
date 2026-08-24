@@ -252,6 +252,15 @@ final class OpenAICompatibleClientTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
     }
 
+    func testDoneTerminationCancelsTransportOnce() async throws {
+        let task = FakeStreamingHTTPTask()
+        task.yield(.response(HTTPURLResponse(url: Self.endpoint, statusCode: 200, httpVersion: nil, headerFields: nil)!))
+        task.yield(.data(Data("data: [DONE]\n\n".utf8)))
+        let pieces = try await collect(streamingClient(task: task).stream(request: sampleRequest()))
+        XCTAssertTrue(pieces.isEmpty)
+        XCTAssertEqual(task.cancelCount, 1)
+    }
+
     // MARK: - Cancellation
 
     func testInjectedTransportYieldsFirstDeltaAndCancelsDeterministically() async throws {
@@ -371,8 +380,28 @@ private final class FakeStreamingHTTPTransport: StreamingHTTPTransport {
 private final class FakeStreamingHTTPTask: StreamingHTTPTask {
     let events: AsyncThrowingStream<StreamingHTTPEvent, Error>
     private let continuation: AsyncThrowingStream<StreamingHTTPEvent, Error>.Continuation
-    private(set) var cancelCount = 0
-    var request: URLRequest?
+    private let stateLock = NSLock()
+    private var _cancelCount = 0
+    private var _request: URLRequest?
+
+    var cancelCount: Int {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _cancelCount
+    }
+
+    var request: URLRequest? {
+        get {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+            return _request
+        }
+        set {
+            stateLock.lock()
+            _request = newValue
+            stateLock.unlock()
+        }
+    }
 
     init() {
         (events, continuation) = AsyncThrowingStream.makeStream()
@@ -391,7 +420,9 @@ private final class FakeStreamingHTTPTask: StreamingHTTPTask {
     }
 
     func cancel() {
-        cancelCount += 1
+        stateLock.lock()
+        _cancelCount += 1
+        stateLock.unlock()
         continuation.finish(throwing: CancellationError())
     }
 }
