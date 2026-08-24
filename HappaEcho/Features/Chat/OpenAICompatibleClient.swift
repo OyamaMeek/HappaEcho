@@ -61,6 +61,7 @@ final class OpenAICompatibleClient: ChatCompletionService {
                     defer { prepared?.cleanup() }
                     var urlRequest = try makeURLRequest(model: request.model, messages: request.messages, stream: true)
                     if let prepared {
+                        urlRequest.setValue(prepared.fileURL.absoluteString, forHTTPHeaderField: "X-HappaEcho-Prepared-Body-URL")
                         urlRequest.httpBody = nil
                         urlRequest.httpBodyStream = prepared.openStream()
                         urlRequest.setValue(prepared.contentType, forHTTPHeaderField: "Content-Type")

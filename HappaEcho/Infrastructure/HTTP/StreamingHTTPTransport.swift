@@ -32,6 +32,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
     private let stateLock = NSLock()
     private var continuation: AsyncThrowingStream<StreamingHTTPEvent, Error>.Continuation?
     private var task: URLSessionDataTask!
+    private var bodyStreamURL: URL?
     private var delegateSession: URLSession?
     private var finished = false
 
@@ -45,6 +46,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
         delegateQueue.maxConcurrentOperationCount = 1
         let delegateSession = URLSession(configuration: session.configuration, delegate: self, delegateQueue: delegateQueue)
         self.delegateSession = delegateSession
+        bodyStreamURL = request.value(forHTTPHeaderField: "X-HappaEcho-Prepared-Body-URL").flatMap(URL.init(string:))
         task = delegateSession.dataTask(with: request)
         task.resume()
     }
@@ -53,6 +55,10 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
         let session = finish(throwing: CancellationError())
         task.cancel()
         session?.invalidateAndCancel()
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, needNewBodyStream completionHandler: @escaping (InputStream?) -> Void) {
+        completionHandler(bodyStreamURL.flatMap(InputStream.init(url:)))
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {

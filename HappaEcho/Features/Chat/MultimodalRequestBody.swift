@@ -58,7 +58,7 @@ struct MultimodalRequestBody {
                 if messageIndex < attachmentsByMessage.count {
                     for attachment in attachmentsByMessage[messageIndex].sorted(by: { $0.userOrder < $1.userOrder }) {
                         if needsComma { try write(",", to: handle) }
-                        try write("{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:\(attachment.mimeType);base64,", to: handle)
+                        try write("{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:\(try json(attachment.mimeType).dropFirst().dropLast());base64,", to: handle)
                         try streamBase64(from: try resolvedURL(for: attachment), to: handle)
                         try write("\"}}", to: handle)
                         needsComma = true
@@ -99,7 +99,8 @@ struct MultimodalRequestBody {
         guard !attachment.relativePath.hasPrefix("/") else { throw MultimodalRequestBodyError.unreadableAttachment }
         let root = (attachmentRootURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)).standardizedFileURL
         let url = root.appending(path: attachment.relativePath).standardizedFileURL
-        guard url.path.hasPrefix(root.path + "/") else { throw MultimodalRequestBodyError.unreadableAttachment }
+        guard url.path.hasPrefix(root.path + "/"),
+              url.resolvingSymlinksInPath().path.hasPrefix(root.resolvingSymlinksInPath().path + "/") else { throw MultimodalRequestBodyError.unreadableAttachment }
         return url
     }
 
