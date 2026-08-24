@@ -45,10 +45,27 @@ final class OpenAICompatibleClient: ChatCompletionService {
     // MARK: - ChatCompletionService
 
     func stream(request: ChatRequest) -> AsyncThrowingStream<String, Error> {
+        stream(request: request, body: nil)
+    }
+
+    /// Streams a file-backed multimodal request, releasing its temporary body on every terminal path.
+    func stream(request: ChatRequest, body: MultimodalRequestBody) -> AsyncThrowingStream<String, Error> {
+        stream(request: request, body: body)
+    }
+
+    private func stream(request: ChatRequest, body: MultimodalRequestBody?) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let urlRequest = try makeURLRequest(model: request.model, messages: request.messages, stream: true)
+                    let prepared = try await body?.prepareTemporaryFile()
+                    defer { prepared?.cleanup() }
+                    var urlRequest = try makeURLRequest(model: request.model, messages: request.messages, stream: true)
+                    if let prepared {
+                        urlRequest.httpBody = nil
+                        urlRequest.httpBodyStream = prepared.openStream()
+                        urlRequest.setValue(prepared.contentType, forHTTPHeaderField: "Content-Type")
+                        urlRequest.setValue(String(prepared.contentLength), forHTTPHeaderField: "Content-Length")
+                    }
                     let transport = streamingTransport.start(request: urlRequest)
                     var response: HTTPURLResponse?
                     var body = Data()

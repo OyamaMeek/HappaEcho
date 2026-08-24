@@ -37,7 +37,8 @@ struct MultimodalRequestBody {
     }
 
     func prepareTemporaryFile() async throws -> PreparedHTTPBody {
-        try validateLimits()
+        let estimatedLength = try validateLimits()
+        if let limit = limits.maxRequestBodyBytes, estimatedLength > limit { throw MultimodalRequestBodyError.requestTooLarge }
         let url = FileManager.default.temporaryDirectory.appending(path: "HappaEcho-request-\(UUID().uuidString).json")
         FileManager.default.createFile(atPath: url.path, contents: nil)
         do {
@@ -58,14 +59,14 @@ struct MultimodalRequestBody {
                     for attachment in attachmentsByMessage[messageIndex].sorted(by: { $0.userOrder < $1.userOrder }) {
                         if needsComma { try write(",", to: handle) }
                         try write("{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:\(attachment.mimeType);base64,", to: handle)
-                        try streamBase64(from: resolvedURL(for: attachment), to: handle)
+                        try streamBase64(from: try resolvedURL(for: attachment), to: handle)
                         try write("\"}}", to: handle)
                         needsComma = true
                     }
                 }
                 try write("]}", to: handle)
             }
-            try write("]}", to: handle)
+            try write("],\"stream\":true}", to: handle)
             let length = try handle.offset()
             if let limit = limits.maxRequestBodyBytes, length > UInt64(limit) { throw MultimodalRequestBodyError.requestTooLarge }
             return PreparedHTTPBody(fileURL: url, contentLength: Int64(length), contentType: "application/json", cleanup: { try? FileManager.default.removeItem(at: url) })
@@ -75,22 +76,31 @@ struct MultimodalRequestBody {
         }
     }
 
-    private func validateLimits() throws {
+    private func validateLimits() throws -> Int {
         var imageIndex = 0
+        var base64Bytes = 0
         for attachments in attachmentsByMessage {
             for attachment in attachments.sorted(by: { $0.userOrder < $1.userOrder }) {
                 let values = try? resolvedURL(for: attachment).resourceValues(forKeys: [.fileSizeKey])
                 guard let size = values?.fileSize else { throw MultimodalRequestBodyError.unreadableAttachment }
                 if let limit = limits.maxImageBytes, size > limit { throw MultimodalRequestBodyError.imageTooLarge(index: imageIndex) }
+                guard size <= Int.max - 2 else { throw MultimodalRequestBodyError.requestTooLarge }
+                let encoded = ((size + 2) / 3) * 4
+                guard encoded <= Int.max - base64Bytes else { throw MultimodalRequestBodyError.requestTooLarge }
+                base64Bytes += encoded
                 imageIndex += 1
             }
         }
+        // All JSON overhead is non-negative; this conservative lower bound prevents output creation for configured caps.
+        return base64Bytes
     }
 
-    private func resolvedURL(for attachment: MessageAttachment) -> URL {
-        if attachment.relativePath.hasPrefix("/") { return URL(fileURLWithPath: attachment.relativePath) }
-        let root = attachmentRootURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)
-        return root.appending(path: attachment.relativePath)
+    private func resolvedURL(for attachment: MessageAttachment) throws -> URL {
+        guard !attachment.relativePath.hasPrefix("/") else { throw MultimodalRequestBodyError.unreadableAttachment }
+        let root = (attachmentRootURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)).standardizedFileURL
+        let url = root.appending(path: attachment.relativePath).standardizedFileURL
+        guard url.path.hasPrefix(root.path + "/") else { throw MultimodalRequestBodyError.unreadableAttachment }
+        return url
     }
 
     private func streamBase64(from url: URL, to handle: FileHandle) throws {

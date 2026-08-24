@@ -20,7 +20,7 @@ final class MultimodalRequestBodyTests: XCTestCase {
         let attachment = attachment(at: imageURL)
         let body = MultimodalRequestBody(request: ChatRequest(model: "vision", messages: [
             ChatInputMessage(role: .user, content: [.text("describe")])
-        ]), attachmentsByMessage: [[attachment]])
+        ]), attachmentsByMessage: [[attachment]], attachmentRootURL: root)
 
         let prepared = try await body.prepareTemporaryFile()
         defer { prepared.cleanup() }
@@ -39,7 +39,7 @@ final class MultimodalRequestBodyTests: XCTestCase {
     func testConfiguredImageLimitFailsBeforeWritingRequest() async throws {
         let imageURL = root.appending(path: "fixture.png")
         try png.write(to: imageURL)
-        let body = MultimodalRequestBody(request: ChatRequest(model: "vision", messages: []), attachmentsByMessage: [[attachment(at: imageURL)]], limits: .init(maxImageBytes: png.count - 1))
+        let body = MultimodalRequestBody(request: ChatRequest(model: "vision", messages: []), attachmentsByMessage: [[attachment(at: imageURL)]], limits: .init(maxImageBytes: png.count - 1), attachmentRootURL: root)
 
         await XCTAssertThrowsErrorAsync(try await body.prepareTemporaryFile()) { error in
             XCTAssertEqual(error as? MultimodalRequestBodyError, .imageTooLarge(index: 0))
@@ -49,7 +49,7 @@ final class MultimodalRequestBodyTests: XCTestCase {
     func testConfiguredTotalLimitFailsBeforeWritingRequest() async throws {
         let imageURL = root.appending(path: "fixture.png")
         try png.write(to: imageURL)
-        let body = MultimodalRequestBody(request: ChatRequest(model: "vision", messages: []), attachmentsByMessage: [[attachment(at: imageURL)]], limits: .init(maxRequestBodyBytes: 1))
+        let body = MultimodalRequestBody(request: ChatRequest(model: "vision", messages: []), attachmentsByMessage: [[attachment(at: imageURL)]], limits: .init(maxRequestBodyBytes: 1), attachmentRootURL: root)
 
         await XCTAssertThrowsErrorAsync(try await body.prepareTemporaryFile()) { error in
             XCTAssertEqual(error as? MultimodalRequestBodyError, .requestTooLarge)
@@ -57,7 +57,7 @@ final class MultimodalRequestBodyTests: XCTestCase {
     }
 
     private func attachment(at url: URL) -> MessageAttachment {
-        MessageAttachment(userOrder: 0, originalFileName: "fixture.png", utType: "public.png", mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: png.count, relativePath: url.path)
+        MessageAttachment(userOrder: 0, originalFileName: "fixture.png", utType: "public.png", mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: png.count, relativePath: "fixture.png")
     }
 }
 
