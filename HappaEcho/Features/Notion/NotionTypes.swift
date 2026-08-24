@@ -24,14 +24,15 @@ struct NotionBlockBatch: Equatable, Sendable { var index: Int; var marker: Strin
 
 struct NotionRichText: Codable, Equatable, Sendable { var content: String }
 
-enum NotionBlockKind: Equatable, Sendable { case paragraph, heading(level: Int), bulletedListItem, quote, code(language: String) }
+enum NotionBlockKind: Equatable, Sendable { case paragraph, heading(level: Int), bulletedListItem, quote, code(language: String), image(fileUploadID: String) }
 
 struct NotionBlock: Equatable, Sendable {
     var kind: NotionBlockKind
     var richText: [NotionRichText]
     var markerMessageID: UUID?
+    var remoteID: String? = nil
     var plainText: String { richText.map(\.content).joined() }
-    static func paragraph(_ text: String) -> Self { .init(kind: .paragraph, richText: [.init(content: text)], markerMessageID: nil) }
+    static func paragraph(_ text: String) -> Self { .init(kind: .paragraph, richText: [.init(content: text)], markerMessageID: nil, remoteID: nil) }
 }
 
 enum NotionError: Error, Equatable, Sendable { case unauthorized, forbidden, notFound, rateLimited(retryAfter: TimeInterval?), server(statusCode: Int), invalidResponse, network(code: Int?) }

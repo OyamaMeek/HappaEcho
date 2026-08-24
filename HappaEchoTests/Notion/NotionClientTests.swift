@@ -50,6 +50,27 @@ final class NotionClientTests: XCTestCase {
         XCTAssertEqual(code["language"] as? String, "swift")
     }
 
+    func testAppendBlocksEncodesFileUploadImage() async throws {
+        let client = makeClient { _ in
+            .init(chunks: [Data(#"{"results":[{"id":"image-block"}]}"#.utf8)])
+        }
+
+        _ = try await client.appendBlocks(
+            pageID: "page",
+            blocks: [.init(kind: .image(fileUploadID: "upload-id"), richText: [], markerMessageID: nil)]
+        )
+
+        let request = try XCTUnwrap(StubURLProtocol.capturedRequest)
+        let body = try XCTUnwrap(Self.requestBody(from: request))
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let child = try XCTUnwrap((object["children"] as? [[String: Any]])?.first)
+        XCTAssertEqual(child["type"] as? String, "image")
+        let image = try XCTUnwrap(child["image"] as? [String: Any])
+        XCTAssertEqual(image["type"] as? String, "file_upload")
+        XCTAssertEqual((image["file_upload"] as? [String: String])?["id"], "upload-id")
+        XCTAssertEqual((image["caption"] as? [Any])?.count, 0)
+    }
+
     func testListBlocksPassesCursorAndDecodesPagination() async throws {
         var request: URLRequest?
         let client = makeClient { captured in

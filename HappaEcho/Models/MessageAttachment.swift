@@ -24,6 +24,7 @@ final class MessageAttachment {
 
     var syncState: SyncState
     var notionUploadID: String?
+    var notionUploadSentAt: Date?
     var notionRemoteURL: String?
     var notionImageBlockID: String?
     var syncError: String?
@@ -42,6 +43,7 @@ final class MessageAttachment {
         relativePath: String,
         syncState: SyncState = .pending,
         notionUploadID: String? = nil,
+        notionUploadSentAt: Date? = nil,
         notionRemoteURL: String? = nil,
         notionImageBlockID: String? = nil,
         syncError: String? = nil
@@ -57,6 +59,7 @@ final class MessageAttachment {
         self.relativePath = relativePath
         self.syncState = syncState
         self.notionUploadID = notionUploadID
+        self.notionUploadSentAt = notionUploadSentAt
         self.notionRemoteURL = notionRemoteURL
         self.notionImageBlockID = notionImageBlockID
         self.syncError = syncError

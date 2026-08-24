@@ -28,15 +28,31 @@ struct NotionSyncConversation: Sendable {
     var pageDatabaseID: String?
 }
 
+struct NotionSyncAttachment: Sendable {
+    var id: UUID
+    var filename: String
+    var contentType: String
+    var fileURL: URL
+    var syncState: SyncState
+    var uploadID: String?
+    var uploadSentAt: Date?
+    var remoteURL: String?
+    var imageBlockID: String?
+}
 @MainActor
 protocol NotionSyncModelStore: AnyObject {
     func configuration() throws -> NotionSyncConfiguration
     func message(id: UUID) throws -> NotionSyncMessage?
+    func attachments(messageID: UUID) throws -> [NotionSyncAttachment]
     func conversation(id: UUID) throws -> NotionSyncConversation?
     func pendingMessageIDs() throws -> [UUID]
     func markSyncing(messageID: UUID) throws
     func bindPage(conversationID: UUID, databaseID: String, pageID: String) throws
     func confirmBatch(messageID: UUID, index: Int, blockIDs: [String]) throws
+    func saveAttachmentUploadID(attachmentID: UUID, uploadID: String) throws
+    func markAttachmentSent(attachmentID: UUID) throws
+    func saveAttachmentRemoteURL(attachmentID: UUID, remoteURL: String?) throws
+    func completeAttachment(attachmentID: UUID, imageBlockID: String) throws
     func markSynced(messageID: UUID) throws
     func markFailed(messageID: UUID, error: String) throws
 }
@@ -58,6 +74,15 @@ final class SwiftDataNotionSyncModelStore: NotionSyncModelStore {
         guard let message = try modelContext.fetch(FetchDescriptor<Message>()).first(where: { $0.id == id }),
               let conversation = message.conversation else { return nil }
         return .init(id: message.id, conversationID: conversation.id, role: message.role, content: message.content, createdAt: message.createdAt, sequence: message.sequence, nextBatchIndex: message.nextNotionBatchIndex, syncState: message.syncState, hasAttachments: !message.attachments.isEmpty)
+    }
+
+    func attachments(messageID: UUID) throws -> [NotionSyncAttachment] {
+        guard let message = try modelContext.fetch(FetchDescriptor<Message>()).first(where: { $0.id == messageID }) else { return [] }
+        let rootURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appending(path: "HappaEcho/Attachments", directoryHint: .isDirectory)
+        return message.attachments.sorted { $0.userOrder < $1.userOrder }.map {
+            .init(id: $0.id, filename: $0.originalFileName, contentType: $0.mimeType, fileURL: rootURL.appending(path: $0.relativePath), syncState: $0.syncState, uploadID: $0.notionUploadID, uploadSentAt: $0.notionUploadSentAt, remoteURL: $0.notionRemoteURL, imageBlockID: $0.notionImageBlockID)
+        }
     }
 
     func conversation(id: UUID) throws -> NotionSyncConversation? {
@@ -91,6 +116,34 @@ final class SwiftDataNotionSyncModelStore: NotionSyncModelStore {
         guard let message = try modelContext.fetch(FetchDescriptor<Message>()).first(where: { $0.id == messageID }) else { return }
         guard message.nextNotionBatchIndex <= index else { return }
         message.confirmBatch(index: index, blockIDs: blockIDs)
+        try modelContext.save()
+    }
+
+    func saveAttachmentUploadID(attachmentID: UUID, uploadID: String) throws {
+        guard let attachment = try modelContext.fetch(FetchDescriptor<MessageAttachment>()).first(where: { $0.id == attachmentID }) else { return }
+        attachment.notionUploadID = uploadID
+        attachment.syncState = .syncing
+        attachment.syncError = nil
+        try modelContext.save()
+    }
+
+    func markAttachmentSent(attachmentID: UUID) throws {
+        guard let attachment = try modelContext.fetch(FetchDescriptor<MessageAttachment>()).first(where: { $0.id == attachmentID }) else { return }
+        attachment.notionUploadSentAt = .now
+        try modelContext.save()
+    }
+
+    func saveAttachmentRemoteURL(attachmentID: UUID, remoteURL: String?) throws {
+        guard let attachment = try modelContext.fetch(FetchDescriptor<MessageAttachment>()).first(where: { $0.id == attachmentID }) else { return }
+        attachment.notionRemoteURL = remoteURL
+        try modelContext.save()
+    }
+
+    func completeAttachment(attachmentID: UUID, imageBlockID: String) throws {
+        guard let attachment = try modelContext.fetch(FetchDescriptor<MessageAttachment>()).first(where: { $0.id == attachmentID }) else { return }
+        attachment.notionImageBlockID = imageBlockID
+        attachment.syncState = .synced
+        attachment.syncError = nil
         try modelContext.save()
     }
 
@@ -201,9 +254,35 @@ actor NotionSyncCoordinator {
             let batches = try formatter.batches(for: model)
             for batch in batches where batch.index >= message.nextBatchIndex {
                 try Task.checkCancellation()
+                if let remoteBlockIDs = try await reconciledBlockIDs(marker: batch.marker, pageID: pageID) {
+                    try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: remoteBlockIDs)
+                    continue
+                }
                 let ids = try await attempt { try await self.service.appendBlocks(pageID: pageID, blocks: batch.blocks) }
                 try Task.checkCancellation()
                 try await store.confirmBatch(messageID: messageID, index: batch.index, blockIDs: ids)
+            }
+            for attachment in try await store.attachments(messageID: messageID) where attachment.imageBlockID == nil {
+                try Task.checkCancellation()
+                let uploadID: String
+                if let existing = attachment.uploadID {
+                    uploadID = existing
+                } else {
+                    let upload = try await attempt { try await self.service.createFileUpload(.init(filename: attachment.filename, contentType: attachment.contentType)) }
+                    try await store.saveAttachmentUploadID(attachmentID: attachment.id, uploadID: upload.id)
+                    uploadID = upload.id
+                }
+                if attachment.uploadSentAt == nil {
+                    try await attempt { try await self.service.sendFile(uploadID: uploadID, fileURL: attachment.fileURL, contentType: attachment.contentType) }
+                    try await store.markAttachmentSent(attachmentID: attachment.id)
+                }
+                if attachment.remoteURL == nil {
+                    let completed = try await attempt { try await self.service.completeFileUpload(uploadID: uploadID) }
+                    try await store.saveAttachmentRemoteURL(attachmentID: attachment.id, remoteURL: completed.fileURL?.absoluteString)
+                }
+                let imageBlockIDs = try await attempt { try await self.service.appendBlocks(pageID: pageID, blocks: [.init(kind: .image(fileUploadID: uploadID), richText: [], markerMessageID: nil)]) }
+                guard let imageBlockID = imageBlockIDs.first else { throw NotionError.invalidResponse }
+                try await store.completeAttachment(attachmentID: attachment.id, imageBlockID: imageBlockID)
             }
             try await store.markSynced(messageID: messageID)
         } catch is CancellationError {
@@ -212,17 +291,37 @@ actor NotionSyncCoordinator {
         }
     }
 
+    private func reconciledBlockIDs(marker: String, pageID: String) async throws -> [String]? {
+        var cursor: String?
+        repeat {
+            let page = try await attempt { try await self.service.listBlocks(pageID: pageID, cursor: cursor) }
+            if let markerBlock = page.blocks.first(where: { $0.plainText == marker }) {
+                return [markerBlock.remoteID].compactMap { $0 }
+            }
+            cursor = page.hasMore ? page.nextCursor : nil
+        } while cursor != nil
+        return nil
+    }
+
     private func attempt<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T {
         var delay: TimeInterval = 1
+        var lastError: Error?
         for attempt in 0..<3 {
-            do { return try await operation() }
-            catch let error as NotionError where isTransient(error) && attempt < 2 {
-                if case let .rateLimited(retryAfter) = error { delay = max(delay, retryAfter ?? 0) }
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                guard let notionError = error as? NotionError,
+                      isTransient(notionError),
+                      attempt < 2 else { throw error }
+                if case let .rateLimited(retryAfter) = notionError {
+                    delay = max(delay, retryAfter ?? 0)
+                }
                 try await sleeper.sleep(for: delay)
                 delay *= 2
             }
         }
-        throw NotionError.network(code: nil)
+        throw lastError ?? NotionError.network(code: nil)
     }
 
     private func isTransient(_ error: NotionError) -> Bool {
