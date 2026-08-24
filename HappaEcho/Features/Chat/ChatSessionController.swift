@@ -1,0 +1,164 @@
+import Foundation
+import SwiftData
+
+@MainActor
+final class ChatSessionController {
+    private let service: ChatCompletionService
+    private let modelContext: ModelContext
+    private let attachmentStore: AttachmentStore
+    private let syncScheduler: NotionSyncScheduling
+    private let settings: ChatSessionSettings
+    private var tasks: [UUID: Task<Void, Never>] = [:]
+    private var states: [UUID: ChatSessionState] = [:]
+    private var drafts: [UUID: ChatDraft] = [:]
+
+    init(
+        service: ChatCompletionService,
+        modelContext: ModelContext,
+        attachmentStore: AttachmentStore,
+        syncScheduler: NotionSyncScheduling,
+        settings: ChatSessionSettings
+    ) {
+        self.service = service
+        self.modelContext = modelContext
+        self.attachmentStore = attachmentStore
+        self.syncScheduler = syncScheduler
+        self.settings = settings
+    }
+
+    func state(for conversationID: UUID) -> ChatSessionState {
+        states[conversationID] ?? .idle
+    }
+
+    func restoredDraft(for conversationID: UUID) -> ChatDraft? {
+        drafts[conversationID]
+    }
+
+    func send(text: String, attachments: [MessageAttachment], conversation: Conversation) async {
+        guard tasks[conversation.id] == nil else { return }
+        guard attachments.isEmpty || settings.supportsVision else {
+            states[conversation.id] = .blocked(.unsupportedVision)
+            return
+        }
+
+        let message = Message(role: .user, content: text, sequence: nextSequence(in: conversation))
+        for attachment in attachments.sorted(by: { $0.userOrder < $1.userOrder }) {
+            attachment.message = message
+            message.attachments.append(attachment)
+        }
+        persist(message, in: conversation)
+        beginGeneration(in: conversation, request: makeRequest(from: conversation), draft: ChatDraft(text: text, attachments: attachments))
+        await Task.yield()
+    }
+
+    func continueGeneration(after message: Message, in conversation: Conversation) async {
+        guard message.generationState == .failedPartial, tasks[conversation.id] == nil else { return }
+        let messages = conversation.sortedMessages.filter { $0.sequence <= message.sequence }.map(makeInput)
+        beginGeneration(in: conversation, request: ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(messages)), draft: nil)
+        await Task.yield()
+    }
+
+    func stop(conversationID: UUID) {
+        tasks[conversationID]?.cancel()
+    }
+
+    private func beginGeneration(in conversation: Conversation, request: ChatRequest, draft: ChatDraft?) {
+        let id = conversation.id
+        conversation.isGenerating = true
+        states[id] = .generating(text: "")
+        let service = service
+        tasks[id] = Task { [weak self, weak conversation] in
+            guard let self, let conversation else { return }
+            var accumulated = ""
+            var wasCancelled = false
+            do {
+                try await withTaskCancellationHandler(operation: {
+                    for try await delta in service.stream(request: request) {
+                        try Task.checkCancellation()
+                        accumulated += delta
+                        self.states[id] = .generating(text: accumulated)
+                    }
+                }, onCancel: {
+                    wasCancelled = true
+                })
+                try Task.checkCancellation()
+                self.finish(text: accumulated, state: .completed, conversation: conversation, id: id)
+            } catch is CancellationError {
+                self.finishCancellation(text: accumulated, conversation: conversation, id: id)
+            } catch {
+                if Task.isCancelled || wasCancelled {
+                    self.finishCancellation(text: accumulated, conversation: conversation, id: id)
+                } else {
+                    self.finishFailure(error: error, text: accumulated, draft: draft, conversation: conversation, id: id)
+                }
+            }
+        }
+    }
+
+    private func finish(text: String, state: GenerationState, conversation: Conversation, id: UUID) {
+        if !text.isEmpty {
+            let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: state)
+            persist(message, in: conversation)
+        }
+        conclude(conversation: conversation, id: id, state: .idle)
+    }
+
+    private func finishCancellation(text: String, conversation: Conversation, id: UUID) {
+        if !text.isEmpty {
+            let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: .stopped)
+            persist(message, in: conversation)
+            conclude(conversation: conversation, id: id, state: .stopped(text: text))
+        } else {
+            conclude(conversation: conversation, id: id, state: .idle)
+        }
+    }
+
+    private func finishFailure(error: Error, text: String, draft: ChatDraft?, conversation: Conversation, id: UUID) {
+        if !text.isEmpty {
+            let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: .failedPartial)
+            persist(message, in: conversation)
+        } else if let draft, isContextLimit(error) {
+            drafts[id] = draft
+        }
+        conclude(conversation: conversation, id: id, state: .failed(message: error.localizedDescription))
+    }
+
+    private func conclude(conversation: Conversation, id: UUID, state: ChatSessionState) {
+        conversation.isGenerating = false
+        states[id] = state
+        tasks[id] = nil
+        try? modelContext.save()
+    }
+
+    private func persist(_ message: Message, in conversation: Conversation) {
+        message.conversation = conversation
+        conversation.messages.append(message)
+        conversation.updatedAt = .now
+        modelContext.insert(message)
+        try? modelContext.save()
+        syncScheduler.enqueue(messageID: message.id)
+    }
+
+    private func nextSequence(in conversation: Conversation) -> Int {
+        (conversation.messages.map(\.sequence).max() ?? -1) + 1
+    }
+
+    private func makeRequest(from conversation: Conversation) -> ChatRequest {
+        ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(conversation.sortedMessages.map(makeInput)))
+    }
+
+    private func withSystemPrompt(_ messages: [ChatInputMessage]) -> [ChatInputMessage] {
+        guard let prompt = settings.systemPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !prompt.isEmpty else { return messages }
+        return [ChatInputMessage(role: .system, content: [.text(prompt)])] + messages
+    }
+
+    private func makeInput(_ message: Message) -> ChatInputMessage {
+        let role: ChatRole = message.role == .user ? .user : .assistant
+        return ChatInputMessage(role: role, content: [.text(message.content)])
+    }
+
+    private func isContextLimit(_ error: Error) -> Bool {
+        guard case let ChatServiceError.invalidRequest(message) = error else { return false }
+        return message?.localizedCaseInsensitiveContains("context") == true
+    }
+}

@@ -35,7 +35,10 @@ C10000180000000000000018 /* AttachmentStore.swift in Sources */ = {isa = PBXBuil
 		C100001A0000000000000001A /* MultimodalRequestBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001E0000000000000001E /* MultimodalRequestBody.swift */; };
 		C100001B0000000000000001B /* AttachmentStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001F0000000000000001F /* AttachmentStoreTests.swift */; };
 		C100001C0000000000000001C /* MultimodalRequestBodyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000200000000000000020 /* MultimodalRequestBodyTests.swift */; };
-	/* End PBXBuildFile section */
+	C100001D0000000000000001D /* ChatSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000210000000000000021 /* ChatSessionController.swift */; };
+			C100001E0000000000000001E /* ChatSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000220000000000000022 /* ChatSessionState.swift */; };
+			C100001F0000000000000001F /* ChatSessionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000230000000000000023 /* ChatSessionControllerTests.swift */; };
+		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		A100000A000000000000000A /* PBXContainerItemProxy */ = {
@@ -87,7 +90,10 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 		B100001E0000000000000001E /* MultimodalRequestBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultimodalRequestBody.swift; sourceTree = "<group>"; };
 		B100001F0000000000000001F /* AttachmentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentStoreTests.swift; sourceTree = "<group>"; };
 		B10000200000000000000020 /* MultimodalRequestBodyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultimodalRequestBodyTests.swift; sourceTree = "<group>"; };
-	/* End PBXFileReference section */
+	B10000210000000000000021 /* ChatSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionController.swift; sourceTree = "<group>"; };
+			B10000220000000000000022 /* ChatSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionState.swift; sourceTree = "<group>"; };
+			B10000230000000000000023 /* ChatSessionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionControllerTests.swift; sourceTree = "<group>"; };
+		/* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D10000020000000000000002 /* Frameworks */ = {
@@ -203,6 +209,8 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 				B10000170000000000000017 /* ChatCompletionTypes.swift */,
 				B10000180000000000000018 /* OpenAICompatibleClient.swift */,
 					B100001E0000000000000001E /* MultimodalRequestBody.swift */,
+					B10000210000000000000021 /* ChatSessionController.swift */,
+					B10000220000000000000022 /* ChatSessionState.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -242,6 +250,7 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 				B10000190000000000000019 /* ServerSentEventParserTests.swift */,
 				B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */,
 					B10000200000000000000020 /* MultimodalRequestBodyTests.swift */,
+					B10000230000000000000023 /* ChatSessionControllerTests.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -421,6 +430,8 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 					C10000180000000000000018 /* AttachmentStore.swift in Sources */,
 					C10000190000000000000019 /* AttachmentImporter.swift in Sources */,
 					C100001A0000000000000001A /* MultimodalRequestBody.swift in Sources */,
+					C100001D0000000000000001D /* ChatSessionController.swift in Sources */,
+					C100001E0000000000000001E /* ChatSessionState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -436,6 +447,7 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 				C10000160000000000000016 /* OpenAICompatibleClientTests.swift in Sources */,
 					C100001B0000000000000001B /* AttachmentStoreTests.swift in Sources */,
 					C100001C0000000000000001C /* MultimodalRequestBodyTests.swift in Sources */,
+					C100001F0000000000000001F /* ChatSessionControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
