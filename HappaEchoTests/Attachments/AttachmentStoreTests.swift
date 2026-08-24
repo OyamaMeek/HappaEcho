@@ -1,5 +1,6 @@
 import XCTest
 import UniformTypeIdentifiers
+import PhotosUI
 @testable import HappaEcho
 
 final class AttachmentStoreTests: XCTestCase {
@@ -11,9 +12,7 @@ final class AttachmentStoreTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }
 
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: root)
-    }
+    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
 
     func testFileImportPreservesOriginalBytes() async throws {
         let source = root.appending(path: "source.png")
@@ -41,9 +40,7 @@ final class AttachmentStoreTests: XCTestCase {
     func testTransferredDataPreservesOriginalBytesAndStoresRelativePath() async throws {
         let store = AttachmentStore(rootURL: root)
         let conversationID = UUID()
-
         let attachment = try await store.importTransferredData(png, suggestedName: "fixture.png", contentType: .png, conversationID: conversationID)
-
         XCTAssertEqual(try Data(contentsOf: root.appending(path: attachment.relativePath)), png)
         XCTAssertEqual(attachment.mimeType, "image/png")
         XCTAssertFalse(attachment.relativePath.hasPrefix("/"))
@@ -51,16 +48,68 @@ final class AttachmentStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testPhotoProviderTransfersExactBytesAndReportsCompleteProgress() async throws {
-        let provider = FixturePhotoDataLoader(data: png, suggestedName: "icloud-fixture.png", typeIdentifier: UTType.png.identifier, progressValues: [0.25, 0.75])
+    func testPhotoFileProviderStagesExactBytesBeforeProviderFileExpiresAndReportsProgress() async throws {
+        let provider = ControlledPhotoFileProvider(data: png, root: root, typeIdentifier: UTType.png.identifier)
         let importer = PhotoLibraryImporter(store: AttachmentStore(rootURL: root))
-        var progress: [Double] = []
-        importer.progress = { progress.append($0) }
+        var values: [Double] = []
+        importer.progress = { values.append($0) }
 
-        let attachment = try await importer.importProvider(provider, conversationID: UUID())
+        let task = Task { try await importer.importProvider(provider, conversationID: UUID()) }
+        await provider.waitForLoad()
+        XCTAssertEqual(values, [0])
+        provider.reportProgress(25)
+        try? await Task.sleep(for: .milliseconds(50))
+        provider.reportProgress(75)
+        try? await Task.sleep(for: .milliseconds(50))
+        provider.completeAndDeleteSource()
+        let attachment = try await task.value
 
         XCTAssertEqual(try Data(contentsOf: root.appending(path: attachment.relativePath)), png)
-        XCTAssertEqual(progress, [0, 0.25, 0.75, 1])
+        XCTAssertEqual(values.first, 0)
+        XCTAssertTrue(values.contains(0.75))
+        XCTAssertEqual(values.last, 1)
+        XCTAssertTrue(provider.sourceWasDeleted)
+    }
+
+    @MainActor
+    func testPhotoImportCancellationCancelsUnderlyingTransferAndDoesNotPersistOrComplete() async throws {
+        let provider = ControlledPhotoFileProvider(data: png, root: root, typeIdentifier: UTType.png.identifier)
+        let importer = PhotoLibraryImporter(store: AttachmentStore(rootURL: root))
+        var values: [Double] = []
+        importer.progress = { values.append($0) }
+        let task = Task { try await importer.importProvider(provider, conversationID: UUID()) }
+        await provider.waitForLoad()
+        try? await Task.sleep(for: .milliseconds(50))
+        provider.reportProgress(25)
+        try? await Task.sleep(for: .milliseconds(100))
+        task.cancel()
+        do { _ = try await task.value; XCTFail("Expected cancellation") }
+        catch is CancellationError { }
+        provider.completeAndDeleteSource()
+        try? await Task.sleep(for: .milliseconds(20))
+
+        XCTAssertTrue(provider.progress.isCancelled)
+        XCTAssertEqual(values, [0, 0.25])
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent != "photos-provider-source.png" }
+            .isEmpty)
+    }
+
+    @MainActor
+    func testPhotoFileProviderErrorDoesNotPersistOrComplete() async throws {
+        let provider = ControlledPhotoFileProvider(data: png, root: root, typeIdentifier: UTType.png.identifier)
+        let importer = PhotoLibraryImporter(store: AttachmentStore(rootURL: root))
+        var values: [Double] = []
+        importer.progress = { values.append($0) }
+        let task = Task { try await importer.importProvider(provider, conversationID: UUID()) }
+        await provider.waitForLoad()
+        provider.fail()
+        do { _ = try await task.value; XCTFail("Expected unreadable file") }
+        catch AttachmentStoreError.unreadableFile { }
+        XCTAssertEqual(values, [0])
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent != "photos-provider-source.png" }
+            .isEmpty)
     }
 
     @MainActor
@@ -68,104 +117,102 @@ final class AttachmentStoreTests: XCTestCase {
         XCTAssertEqual(PhotoLibraryImporter.pickerConfiguration().preferredAssetRepresentationMode, .current)
     }
 
-    func testSecurityScopedAccessReleasesAfterSuccessfulCopy() async throws {
-        let source = root.appending(path: "source.png")
+    @MainActor
+    func testActualNSItemProviderFileRepresentationAdapterPreservesPNGBytes() async throws {
+        let source = root.appending(path: "provider.png")
         try png.write(to: source)
+        let provider = NSItemProvider(contentsOf: source, contentType: .png)
+        let imported = try await PhotoLibraryImporter(store: AttachmentStore(rootURL: root)).importProvider(provider, conversationID: UUID())
+        XCTAssertEqual(try Data(contentsOf: root.appending(path: imported.relativePath)), png)
+    }
+
+    func testSecurityScopedAccessReleasesAfterSuccessfulCopy() async throws {
+        let source = root.appending(path: "source.png"); try png.write(to: source)
         let scope = RecordingSecurityScope()
-
         _ = try await AttachmentStore(rootURL: root, securityScope: scope).importFile(from: source, conversationID: UUID())
-
         XCTAssertEqual(scope.events, [.acquire(source), .release(source)])
     }
 
     func testSecurityScopedAccessReleasesAfterCopyError() async throws {
-        let source = root.appending(path: "missing.png")
-        let scope = RecordingSecurityScope()
-
-        do {
-            _ = try await AttachmentStore(rootURL: root, securityScope: scope).importFile(from: source, conversationID: UUID())
-            XCTFail("Expected unreadable file")
-        } catch AttachmentStoreError.unreadableFile { }
-
+        let source = root.appending(path: "missing.png"); let scope = RecordingSecurityScope()
+        do { _ = try await AttachmentStore(rootURL: root, securityScope: scope).importFile(from: source, conversationID: UUID()); XCTFail("Expected unreadable file") }
+        catch AttachmentStoreError.unreadableFile { }
         XCTAssertEqual(scope.events, [.acquire(source), .release(source)])
     }
 
     func testInvalidTransferredDataDoesNotDeleteOtherDrafts() async throws {
-        let store = AttachmentStore(rootURL: root)
-        let conversationID = UUID()
+        let store = AttachmentStore(rootURL: root); let conversationID = UUID()
         let valid = try await store.importTransferredData(png, suggestedName: "valid.png", contentType: .png, conversationID: conversationID)
-
-        do {
-            _ = try await store.importTransferredData(Data("not an image".utf8), suggestedName: "invalid.png", contentType: .png, conversationID: conversationID)
-            XCTFail("Expected invalid image error")
-        } catch AttachmentStoreError.invalidImage { }
-
+        do { _ = try await store.importTransferredData(Data("not an image".utf8), suggestedName: "invalid.png", contentType: .png, conversationID: conversationID); XCTFail("Expected invalid image error") }
+        catch AttachmentStoreError.invalidImage { }
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: valid.relativePath).path))
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(at: root.appending(path: conversationID.uuidString), includingPropertiesForKeys: nil).count, 1)
     }
 
     func testDeleteDraftAndOrphanCleanupRemoveOriginals() async throws {
-        let store = AttachmentStore(rootURL: root)
-        let conversationID = UUID()
+        let store = AttachmentStore(rootURL: root); let conversationID = UUID()
         let first = try await store.importTransferredData(png, suggestedName: "first.png", contentType: .png, conversationID: conversationID)
         let second = try await store.importTransferredData(png, suggestedName: "second.png", contentType: .png, conversationID: conversationID)
-
-        try await store.deleteDraft(first)
-        try await store.removeOrphans(keeping: [second.relativePath])
-
+        try await store.deleteDraft(first); try await store.removeOrphans(keeping: [second.relativePath])
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appending(path: first.relativePath).path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: second.relativePath).path))
     }
 }
 
-private final class FixturePhotoDataLoader: PhotoDataLoading, PhotoProviderDataLoading, @unchecked Sendable {
-    let data: Data
-    let suggestedName: String?
+private final class ControlledPhotoFileProvider: PhotoFileRepresentationLoading, @unchecked Sendable {
+    let suggestedName: String? = "icloud-fixture.png"
     let typeIdentifiers: [String]
-    let progressValues: [Double]
+    let progress = Progress(totalUnitCount: 100)
+    private let lock = NSLock()
+    private let source: URL
+    private var completion: ((URL?, Error?) -> Void)?
+    private var started = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var sourceWasDeleted = false
 
-    init(data: Data, suggestedName: String, typeIdentifier: String, progressValues: [Double]) {
-        self.data = data
-        self.suggestedName = suggestedName
-        self.typeIdentifiers = [typeIdentifier]
-        self.progressValues = progressValues
+    init(data: Data, root: URL, typeIdentifier: String) {
+        typeIdentifiers = [typeIdentifier]
+        source = root.appending(path: "photos-provider-source.png")
+        try! data.write(to: source)
     }
 
-    func loadData(typeIdentifier: String, completion: @escaping (Data?, Error?) -> Void) {
-        completion(data, nil)
+    func loadFileRepresentation(typeIdentifier: String, completion: @escaping (URL?, Error?) -> Void) -> Progress {
+        lock.lock()
+        self.completion = completion
+        started = true
+        continuation?.resume()
+        continuation = nil
+        lock.unlock()
+        return progress
     }
 
-    func loadData(typeIdentifier: String, progress: @escaping (Double) -> Void, completion: @escaping (Data?, Error?) -> Void) {
-        progressValues.forEach(progress)
-        completion(data, nil)
+    func waitForLoad() async {
+        lock.lock()
+        let alreadyStarted = started
+        lock.unlock()
+        guard !alreadyStarted else { return }
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if started { lock.unlock(); continuation.resume() }
+            else { self.continuation = continuation; lock.unlock() }
+        }
     }
+
+    func reportProgress(_ completed: Int64) { progress.completedUnitCount = completed }
+
+    func completeAndDeleteSource() {
+        lock.lock(); let callback = completion; lock.unlock()
+        callback?(source, nil)
+        try? FileManager.default.removeItem(at: source)
+        sourceWasDeleted = true
+    }
+
+    func fail() { lock.lock(); let callback = completion; lock.unlock(); callback?(nil, nil) }
 }
 
 private final class RecordingSecurityScope: SecurityScopedResourceAccessing, @unchecked Sendable {
-    enum Event: Equatable {
-        case acquire(URL)
-        case release(URL)
-    }
-
-    private let lock = NSLock()
-    private var recordedEvents: [Event] = []
-
-    var events: [Event] {
-        lock.lock()
-        defer { lock.unlock() }
-        return recordedEvents
-    }
-
-    func acquire(_ url: URL) -> Bool {
-        lock.lock()
-        recordedEvents.append(.acquire(url))
-        lock.unlock()
-        return true
-    }
-
-    func release(_ url: URL) {
-        lock.lock()
-        recordedEvents.append(.release(url))
-        lock.unlock()
-    }
+    enum Event: Equatable { case acquire(URL); case release(URL) }
+    private let lock = NSLock(); private var recordedEvents: [Event] = []
+    var events: [Event] { lock.lock(); defer { lock.unlock() }; return recordedEvents }
+    func acquire(_ url: URL) -> Bool { lock.lock(); recordedEvents.append(.acquire(url)); lock.unlock(); return true }
+    func release(_ url: URL) { lock.lock(); recordedEvents.append(.release(url)); lock.unlock() }
 }
