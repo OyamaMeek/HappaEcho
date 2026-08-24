@@ -2,6 +2,14 @@ import XCTest
 @testable import HappaEcho
 
 final class NotionClientTests: XCTestCase {
+    private static func requestBody(from request: URLRequest) -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open(); defer { stream.close() }
+        var data = Data(); let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 1_024); defer { buffer.deallocate() }
+        while stream.hasBytesAvailable { let count = stream.read(buffer, maxLength: 1_024); guard count >= 0 else { return nil }; data.append(buffer, count: count) }
+        return data
+    }
     private let baseURL = URL(string: "https://notion.example.test/v1/")!
 
     private func makeClient(_ handler: @escaping (URLRequest) throws -> StubURLProtocol.Response) -> NotionClient {
@@ -25,10 +33,18 @@ final class NotionClientTests: XCTestCase {
         XCTAssertEqual(page.id, "page-id")
     }
 
-    func testAppendBlocksReturnsRemoteIDs() async throws {
-        let client = makeClient { _ in .init(chunks: [Data(#"{"results":[{"id":"a"},{"id":"b"}]}"#.utf8)]) }
-        let ids = try await client.appendBlocks(pageID: "page", blocks: [.paragraph("text")])
+    func testAppendBlocksReturnsRemoteIDsAndEncodesCodeLanguage() async throws {
+        let client = makeClient { _ in
+            return .init(chunks: [Data(#"{"results":[{"id":"a"},{"id":"b"}]}"#.utf8)])
+        }
+        let ids = try await client.appendBlocks(pageID: "page", blocks: [.init(kind: .code(language: "swift"), richText: [.init(content: "let x")], markerMessageID: nil)])
         XCTAssertEqual(ids, ["a", "b"])
+        let request = try XCTUnwrap(StubURLProtocol.capturedRequest)
+        let body = try XCTUnwrap(Self.requestBody(from: request))
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let children = try XCTUnwrap(object["children"] as? [[String: Any]])
+        let code = try XCTUnwrap(children[0]["code"] as? [String: Any])
+        XCTAssertEqual(code["language"] as? String, "swift")
     }
 
     func testListBlocksPassesCursorAndDecodesPagination() async throws {

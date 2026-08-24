@@ -2,7 +2,7 @@ import XCTest
 @testable import HappaEcho
 
 final class NotionBlockFormatterTests: XCTestCase {
-    private let formatter = NotionBlockFormatter(maxRichTextCharacters: 2_000, maxBlocksPerBatch: 3)
+    private let formatter = NotionBlockFormatter(maxRichTextCharacters: 2_000, maxBlocksPerBatch: 5)
 
     func testPagePropertiesContainConversationMetadata() {
         let conversation = Conversation(
@@ -35,35 +35,48 @@ final class NotionBlockFormatterTests: XCTestCase {
 
     func testFormatsLongParagraphIntoTwoThousandCharacterRichTextSegments() {
         let text = String(repeating: "a", count: 2_001)
-        let blocks = formatter.blocks(for: Message(role: .user, content: text, sequence: 0), batchIndex: 0)
-        XCTAssertEqual(blocks.count, 2)
-        XCTAssertEqual(blocks.map(\.plainText), ["happaecho-message:\(blocks[0].markerMessageID!.uuidString.lowercased()):batch:0", text])
-        XCTAssertEqual(blocks[1].richText.map(\.content.count), [2_000, 1])
+        let message = Message(role: .user, content: text, createdAt: Date(timeIntervalSince1970: 0), sequence: 0)
+        let blocks = formatter.blocks(for: message, batchIndex: 0)
+        XCTAssertEqual(blocks.count, 4)
+        XCTAssertEqual(blocks.map(\.plainText), ["happaecho-message:\(blocks[0].markerMessageID!.uuidString.lowercased()):batch:0", "User", "1970-01-01T00:00:00Z", text])
+        XCTAssertEqual(blocks[3].richText.map(\.content.count), [2_000, 1])
     }
 
-    func testFormatsMarkdownDeterministically() {
-        let message = Message(role: .assistant, content: "# Heading\n- first\n- second\n> quote\n```swift\nlet x = 1\n```", sequence: 0)
+    func testFormatsMarkdownDeterministicallyWithRoleAndTimestamp() {
+        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let message = Message(role: .assistant, content: "# Heading\n- first\n- second\n> quote\n```swift\nlet x = 1\n```", createdAt: timestamp, sequence: 0)
         let blocks = formatter.blocks(for: message, batchIndex: 2)
-        XCTAssertEqual(blocks.map(\.kind), [.paragraph, .heading(level: 1), .bulletedListItem, .bulletedListItem, .quote, .code(language: "swift")])
-        XCTAssertEqual(blocks.dropFirst().map(\.plainText), ["Heading", "first", "second", "quote", "let x = 1"])
+        XCTAssertEqual(blocks.map(\.kind), [.paragraph, .paragraph, .paragraph, .heading(level: 1), .bulletedListItem, .bulletedListItem, .quote, .code(language: "swift")])
+        XCTAssertEqual(blocks.map(\.plainText), [
+            "happaecho-message:\(message.id.uuidString.lowercased()):batch:2",
+            "Assistant",
+            "2023-11-14T22:13:20Z",
+            "Heading", "first", "second", "quote", "let x = 1",
+        ])
+    }
+
+    func testPreservesOrdinaryMultilineParagraphInOneBlock() {
+        let message = Message(role: .user, content: "first line\nsecond line\nthird line", sequence: 0)
+        let blocks = formatter.blocks(for: message, batchIndex: 0)
+        XCTAssertEqual(blocks.dropFirst(3).map(\.plainText), ["first line\nsecond line\nthird line"])
     }
 
     func testFallsBackToParagraphForUnclosedCodeFenceAndPreservesRawLatex() {
         let message = Message(role: .user, content: "$$\\frac{a}{b}$$\n```swift\nlet x", sequence: 0)
         let blocks = formatter.blocks(for: message, batchIndex: 0)
-        XCTAssertEqual(blocks.dropFirst().map(\.kind), [.paragraph, .paragraph])
-        XCTAssertEqual(blocks.dropFirst().map(\.plainText), ["$$\\frac{a}{b}$$", "```swift\nlet x"])
+        XCTAssertEqual(blocks.dropFirst(3).map(\.kind), [.paragraph, .paragraph])
+        XCTAssertEqual(blocks.dropFirst(3).map(\.plainText), ["$$\\frac{a}{b}$$", "```swift\nlet x"])
     }
 
     func testSplitsBlocksIntoStableMarkedBatches() {
-        let message = Message(id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!, role: .user, content: "one\ntwo\nthree\nfour", sequence: 0)
+        let message = Message(id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!, role: .user, content: "# one\n# two\n# three\n# four", sequence: 0)
         let batches = formatter.batches(for: message)
         XCTAssertEqual(batches.map(\.index), [0, 1])
         XCTAssertEqual(batches.map(\.marker), [
             "happaecho-message:22222222-2222-2222-2222-222222222222:batch:0",
             "happaecho-message:22222222-2222-2222-2222-222222222222:batch:1",
         ])
-        XCTAssertEqual(batches.map { $0.blocks.count }, [3, 3])
+        XCTAssertEqual(batches.map { $0.blocks.count }, [5, 5])
         XCTAssertEqual(batches.flatMap(\.blocks).filter { $0.markerMessageID != nil }.count, 2)
     }
 }
