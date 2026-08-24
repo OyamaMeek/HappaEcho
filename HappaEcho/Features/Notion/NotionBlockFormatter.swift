@@ -1,5 +1,9 @@
 import Foundation
 
+enum NotionBlockFormatterError: Error, Equatable, Sendable {
+    case invalidBatchLimit(Int)
+}
+
 struct NotionBlockFormatter: Sendable {
     let maxRichTextCharacters: Int
     let maxBlocksPerBatch: Int
@@ -19,7 +23,10 @@ struct NotionBlockFormatter: Sendable {
         [.init(kind: .paragraph, richText: [.init(content: marker(for: message.id, index: batchIndex))], markerMessageID: message.id), .paragraph(message.role == .assistant ? "Assistant" : "User"), .paragraph(ISO8601DateFormatter().string(from: message.createdAt))] + contentBlocks(message.content)
     }
 
-    func batches(for message: Message) -> [NotionBlockBatch] {
+    func batches(for message: Message) throws -> [NotionBlockBatch] {
+        guard maxBlocksPerBatch >= 2 else {
+            throw NotionBlockFormatterError.invalidBatchLimit(maxBlocksPerBatch)
+        }
         let content = contentBlocks(message.content)
         var batches: [NotionBlockBatch] = []
         var offset = 0

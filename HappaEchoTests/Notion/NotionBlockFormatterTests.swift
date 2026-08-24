@@ -68,9 +68,9 @@ final class NotionBlockFormatterTests: XCTestCase {
         XCTAssertEqual(blocks.dropFirst(3).map(\.plainText), ["$$\\frac{a}{b}$$", "```swift\nlet x"])
     }
 
-    func testSplitsBlocksIntoStableMarkedBatches() {
+    func testSplitsBlocksIntoStableMarkedBatches() throws {
         let message = Message(id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!, role: .user, content: "# one\n# two\n# three\n# four", sequence: 0)
-        let batches = formatter.batches(for: message)
+        let batches = try formatter.batches(for: message)
         XCTAssertEqual(batches.map(\.index), [0, 1])
         XCTAssertEqual(batches.map(\.marker), [
             "happaecho-message:22222222-2222-2222-2222-222222222222:batch:0",
@@ -79,10 +79,20 @@ final class NotionBlockFormatterTests: XCTestCase {
         XCTAssertEqual(batches.map { $0.blocks.count }, [5, 2])
         XCTAssertEqual(batches.flatMap(\.blocks).filter { $0.markerMessageID != nil }.count, 2)
     }
-    func testNeverExceedsConfiguredBatchLimitBelowMetadataCount() {
+    func testRejectsBatchLimitsThatCannotHoldMessageContent() {
+        let message = Message(role: .user, content: "content", sequence: 0)
+        for limit in [0, 1] {
+            let formatter = NotionBlockFormatter(maxBlocksPerBatch: limit)
+            XCTAssertThrowsError(try formatter.batches(for: message)) { error in
+                XCTAssertEqual(error as? NotionBlockFormatterError, .invalidBatchLimit(limit))
+            }
+        }
+    }
+
+    func testNeverExceedsConfiguredBatchLimitBelowMetadataCount() throws {
         let formatter = NotionBlockFormatter(maxBlocksPerBatch: 2)
         let message = Message(role: .user, content: "# one\n# two", sequence: 0)
-        let batches = formatter.batches(for: message)
+        let batches = try formatter.batches(for: message)
         XCTAssertTrue(batches.allSatisfy { $0.blocks.count <= 2 })
         XCTAssertEqual(batches.flatMap(\.blocks).filter { $0.markerMessageID == message.id }.count, batches.count)
     }

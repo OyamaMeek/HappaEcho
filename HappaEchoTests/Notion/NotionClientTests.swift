@@ -76,11 +76,11 @@ final class NotionClientTests: XCTestCase {
             default: throw URLError(.badURL)
             }
         }
-        let staged = try await client.createFileUpload(.init(filename: "image.png", contentType: "image/png"))
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("image-\(UUID().uuidString).png")
-        try Data("image".utf8).write(to: url)
+        let staged = try await client.createFileUpload(.init(filename: "document.pdf", contentType: "application/pdf"))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("document-\(UUID().uuidString).pdf")
+        try Data("PDF".utf8).write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
-        try await client.sendFile(uploadID: staged.id, fileURL: url)
+        try await client.sendFile(uploadID: staged.id, fileURL: url, contentType: "application/pdf")
         let completed = try await client.completeFileUpload(uploadID: staged.id)
         XCTAssertEqual(requests.map { $0.url!.path }, ["/v1/file_uploads", "/v1/file_uploads/upload/send", "/v1/file_uploads/upload/complete"])
         XCTAssertTrue(requests.allSatisfy { $0.httpMethod == "POST" && $0.value(forHTTPHeaderField: "Authorization") == "Bearer secret" && $0.value(forHTTPHeaderField: "Notion-Version") == NotionClient.notionVersion })
@@ -90,14 +90,14 @@ final class NotionClientTests: XCTestCase {
         XCTAssertEqual(requests[2].value(forHTTPHeaderField: "Content-Type"), "application/json")
         let createBody = try XCTUnwrap(Self.requestBody(from: requests[0]))
         let createJSON = try XCTUnwrap(try JSONSerialization.jsonObject(with: createBody) as? [String: String])
-        XCTAssertEqual(createJSON, ["filename": "image.png", "content_type": "image/png"])
+        XCTAssertEqual(createJSON, ["filename": "document.pdf", "content_type": "application/pdf"])
         let sendBody = try XCTUnwrap(Self.requestBody(from: requests[1]))
         let sendString = try XCTUnwrap(String(data: sendBody, encoding: .utf8))
         let boundary = String(sendContentType.dropFirst("multipart/form-data; boundary=".count))
         XCTAssertTrue(sendString.contains("--\(boundary)\r\n"))
         XCTAssertTrue(sendString.contains("Content-Disposition: form-data; name=\"file\"; filename=\"\(url.lastPathComponent)\""))
-        XCTAssertTrue(sendString.contains("Content-Type: image/png"))
-        XCTAssertTrue(sendString.contains("\r\n\r\nimage\r\n--\(boundary)--\r\n"))
+        XCTAssertTrue(sendString.contains("Content-Type: application/pdf"))
+        XCTAssertTrue(sendString.contains("\r\n\r\nPDF\r\n--\(boundary)--\r\n"))
         XCTAssertNil(Self.requestBody(from: requests[2]))
         XCTAssertEqual(completed.fileURL, URL(string: "https://files.test/image"))
     }

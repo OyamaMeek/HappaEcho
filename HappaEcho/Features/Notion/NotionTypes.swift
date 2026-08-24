@@ -6,7 +6,7 @@ protocol NotionService: Sendable {
     func appendBlocks(pageID: String, blocks: [NotionBlock]) async throws -> [String]
     func listBlocks(pageID: String, cursor: String?) async throws -> NotionBlockPage
     func createFileUpload(_ request: NotionFileUploadRequest) async throws -> NotionFileUpload
-    func sendFile(uploadID: String, fileURL: URL) async throws
+    func sendFile(uploadID: String, fileURL: URL, contentType: String) async throws
     func completeFileUpload(uploadID: String) async throws -> NotionFileUpload
 }
 
