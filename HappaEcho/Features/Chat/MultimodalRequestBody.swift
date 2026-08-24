@@ -28,18 +28,25 @@ struct MultimodalRequestBody {
     let attachmentsByMessage: [[MessageAttachment]]
     let limits: MultimodalRequestBodyLimits
     let attachmentRootURL: URL?
+    /// Injection point for deterministic tests; production defaults to the system temporary directory.
+    let temporaryDirectory: URL
 
-    init(request: ChatRequest, attachmentsByMessage: [[MessageAttachment]], limits: MultimodalRequestBodyLimits = .init(), attachmentRootURL: URL? = nil) {
+    init(request: ChatRequest, attachmentsByMessage: [[MessageAttachment]], limits: MultimodalRequestBodyLimits = .init(), attachmentRootURL: URL? = nil, temporaryDirectory: URL = FileManager.default.temporaryDirectory) {
         self.request = request
         self.attachmentsByMessage = attachmentsByMessage
         self.limits = limits
         self.attachmentRootURL = attachmentRootURL
+        self.temporaryDirectory = temporaryDirectory
     }
 
     func prepareTemporaryFile() async throws -> PreparedHTTPBody {
-        let estimatedLength = try validateLimits()
-        if let limit = limits.maxRequestBodyBytes, estimatedLength > limit { throw MultimodalRequestBodyError.requestTooLarge }
-        let url = FileManager.default.temporaryDirectory.appending(path: "HappaEcho-request-\(UUID().uuidString).json")
+        // This is deliberately completed before even allocating the temporary path.
+        // It uses the same tokens as the writer, so a configured cap is enforced
+        // against the final JSON rather than a Base64-only estimate.
+        try validateImageLimits()
+        let finalLength = try exactSerializedLength()
+        if let limit = limits.maxRequestBodyBytes, finalLength > Int64(limit) { throw MultimodalRequestBodyError.requestTooLarge }
+        let url = temporaryDirectory.appending(path: "HappaEcho-request-\(UUID().uuidString).json")
         FileManager.default.createFile(atPath: url.path, contents: nil)
         do {
             let handle = try FileHandle(forWritingTo: url)
@@ -68,31 +75,71 @@ struct MultimodalRequestBody {
             }
             try write("],\"stream\":true}", to: handle)
             let length = try handle.offset()
-            if let limit = limits.maxRequestBodyBytes, length > UInt64(limit) { throw MultimodalRequestBodyError.requestTooLarge }
-            return PreparedHTTPBody(fileURL: url, contentLength: Int64(length), contentType: "application/json", cleanup: { try? FileManager.default.removeItem(at: url) })
+            guard length == UInt64(finalLength) else { throw MultimodalRequestBodyError.unreadableAttachment }
+            return PreparedHTTPBody(fileURL: url, contentLength: finalLength, contentType: "application/json", cleanup: { try? FileManager.default.removeItem(at: url) })
         } catch {
             try? FileManager.default.removeItem(at: url)
             throw error
         }
     }
 
-    private func validateLimits() throws -> Int {
+    private func validateImageLimits() throws {
         var imageIndex = 0
-        var base64Bytes = 0
         for attachments in attachmentsByMessage {
             for attachment in attachments.sorted(by: { $0.userOrder < $1.userOrder }) {
                 let values = try? resolvedURL(for: attachment).resourceValues(forKeys: [.fileSizeKey])
                 guard let size = values?.fileSize else { throw MultimodalRequestBodyError.unreadableAttachment }
                 if let limit = limits.maxImageBytes, size > limit { throw MultimodalRequestBodyError.imageTooLarge(index: imageIndex) }
-                guard size <= Int.max - 2 else { throw MultimodalRequestBodyError.requestTooLarge }
-                let encoded = ((size + 2) / 3) * 4
-                guard encoded <= Int.max - base64Bytes else { throw MultimodalRequestBodyError.requestTooLarge }
-                base64Bytes += encoded
                 imageIndex += 1
             }
         }
-        // All JSON overhead is non-negative; this conservative lower bound prevents output creation for configured caps.
-        return base64Bytes
+    }
+
+
+    private func exactSerializedLength() throws -> Int64 {
+        var total: Int64 = try byteCount("{\"model\":\(try json(request.model)),\"messages\":[")
+        var imageIndex = 0
+        for messageIndex in request.messages.indices {
+            if messageIndex > 0 { total = try adding(total, 1) }
+            let message = request.messages[messageIndex]
+            total = try adding(total, try byteCount("{\"role\":\(try json(message.role.rawValue)),\"content\":["))
+            var needsComma = false
+            for part in message.content {
+                if needsComma { total = try adding(total, 1) }
+                total = try adding(total, try byteCount(jsonPart(part)))
+                needsComma = true
+            }
+            if messageIndex < attachmentsByMessage.count {
+                for attachment in attachmentsByMessage[messageIndex].sorted(by: { $0.userOrder < $1.userOrder }) {
+                    if needsComma { total = try adding(total, 1) }
+                    // json(mime) has its surrounding quotes removed because it is embedded
+                    // in a quoted data URL; this preserves every JSON escape byte exactly.
+                    total = try adding(total, try byteCount("{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:\(try json(attachment.mimeType).dropFirst().dropLast());base64,"))
+                    let values = try? resolvedURL(for: attachment).resourceValues(forKeys: [.fileSizeKey])
+                    guard let size = values?.fileSize else { throw MultimodalRequestBodyError.unreadableAttachment }
+                    if let limit = limits.maxImageBytes, size > limit { throw MultimodalRequestBodyError.imageTooLarge(index: imageIndex) }
+                    guard size <= ((Int.max / 4) * 3) else { throw MultimodalRequestBodyError.requestTooLarge }
+                    total = try adding(total, Int64(((size + 2) / 3) * 4))
+                    total = try adding(total, 3) // "}}
+                    imageIndex += 1
+                    needsComma = true
+                }
+            }
+            total = try adding(total, 2) // ]}
+        }
+        return try adding(total, try byteCount("],\"stream\":true}"))
+    }
+
+    private func byteCount(_ string: String) throws -> Int64 {
+        let count = string.lengthOfBytes(using: .utf8)
+        guard count <= Int64.max else { throw MultimodalRequestBodyError.requestTooLarge }
+        return Int64(count)
+    }
+
+    private func adding(_ lhs: Int64, _ rhs: Int64) throws -> Int64 {
+        let (sum, overflow) = lhs.addingReportingOverflow(rhs)
+        guard !overflow else { throw MultimodalRequestBodyError.requestTooLarge }
+        return sum
     }
 
     private func resolvedURL(for attachment: MessageAttachment) throws -> URL {
