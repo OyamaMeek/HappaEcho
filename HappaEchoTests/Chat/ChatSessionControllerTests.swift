@@ -31,6 +31,35 @@ final class ChatSessionControllerTests: XCTestCase {
         XCTAssertEqual(fixture.conversation.sortedMessages.map(\.sequence), [3, 8, 9])
     }
 
+    func testSupportedVisionRequestIncludesAttachmentsInUserOrder() async throws {
+        let fixture = try Fixture()
+        let later = try await fixture.importedAttachment(named: "later.png", order: 1)
+        let earlier = try await fixture.importedAttachment(named: "earlier.png", order: 0)
+        fixture.service.streams = [.manual]
+
+        await fixture.controller.send(text: "Picture", attachments: [later, earlier], conversation: fixture.conversation)
+
+        XCTAssertEqual(fixture.service.requests[0].messages, [
+            ChatInputMessage(role: .user, content: [
+                .text("Picture"),
+                .image(.init(mimeType: "image/png", base64: "AQID")),
+                .image(.init(mimeType: "image/png", base64: "BAUG"))
+            ])
+        ])
+    }
+
+    func testDuplicatePersistedSequenceBlocksDispatch() async throws {
+        let fixture = try Fixture()
+        fixture.add(role: .user, content: "One", sequence: 0)
+        fixture.add(role: .assistant, content: "Two", sequence: 0)
+        fixture.service.streams = [.manual]
+
+        await fixture.controller.send(text: "Three", attachments: [], conversation: fixture.conversation)
+
+        XCTAssertEqual(fixture.service.requests.count, 0)
+        XCTAssertEqual(fixture.controller.state(for: fixture.conversation.id), .failed(message: "Message sequence invariant violated"))
+    }
+
     func testRejectsSecondGenerationForSameConversation() async throws {
         let fixture = try Fixture()
         fixture.service.streams = [.manual]
@@ -101,27 +130,34 @@ final class ChatSessionControllerTests: XCTestCase {
 
     func testContinuationIncludesSavedPartialAssistantExactlyOnce() async throws {
         let fixture = try Fixture()
+        fixture.add(role: .user, content: "Question", sequence: 0)
         let partial = fixture.add(role: .assistant, content: "Partial", sequence: 1, generationState: .failedPartial)
         fixture.service.streams = [.manual]
 
         await fixture.controller.continueGeneration(after: partial, in: fixture.conversation)
 
         XCTAssertEqual(fixture.service.requests[0].messages, [
+            ChatInputMessage(role: .user, content: [.text("Question")]),
             ChatInputMessage(role: .assistant, content: [.text("Partial")])
         ])
     }
 
-    func testConversationSwitchDoesNotCancelOtherConversation() async throws {
+    func testOtherConversationGenerationContinuesWhileSecondConversationSends() async throws {
         let fixture = try Fixture()
         let other = Conversation(modelID: "model")
         fixture.context.insert(other)
-        fixture.service.streams = [.deltas(["Done"])]
+        let firstStream = ControlledStream()
+        fixture.service.streams = [.controlled(firstStream), .manual]
 
-        await fixture.controller.send(text: "Question", attachments: [], conversation: fixture.conversation)
-        try await fixture.waitForTerminal()
+        await fixture.controller.send(text: "First", attachments: [], conversation: fixture.conversation)
+        await fixture.controller.send(text: "Second", attachments: [], conversation: other)
+        XCTAssertEqual(fixture.controller.state(for: fixture.conversation.id), .generating(text: ""))
+        XCTAssertEqual(fixture.controller.state(for: other.id), .generating(text: ""))
 
-        XCTAssertEqual(fixture.conversation.sortedMessages.count, 2)
-        XCTAssertEqual(other.isGenerating, false)
+        firstStream.yield("Done")
+        firstStream.finish()
+        try await fixture.waitForTerminal(conversation: fixture.conversation)
+        XCTAssertEqual(other.isGenerating, true)
     }
 
     func testUnsupportedVisionLeavesDraftUnpersisted() async throws {
@@ -144,6 +180,17 @@ final class ChatSessionControllerTests: XCTestCase {
 
         XCTAssertEqual(fixture.controller.restoredDraft(for: fixture.conversation.id)?.text, "Draft")
         XCTAssertEqual(fixture.controller.restoredDraft(for: fixture.conversation.id)?.attachments.count, 1)
+        XCTAssertEqual(fixture.conversation.sortedMessages.count, 1)
+    }
+
+    func testStreamingStatePublishesDeltas() async throws {
+        let fixture = try Fixture()
+        let stream = ControlledStream()
+        fixture.service.streams = [.controlled(stream)]
+        await fixture.controller.send(text: "Question", attachments: [], conversation: fixture.conversation)
+        stream.yield("Delta")
+        try await Task.sleep(for: .milliseconds(20))
+        XCTAssertEqual(fixture.controller.state(for: fixture.conversation.id), .generating(text: "Delta"))
     }
 }
 
@@ -152,14 +199,16 @@ final class ChatSessionControllerTests: XCTestCase {
     let conversation: Conversation
     let service = FakeChatService()
     let scheduler = FakeSyncScheduler()
+    let attachmentRoot: URL
     let controller: ChatSessionController
 
     init(supportsVision: Bool = true) throws {
         let container = try HappaEchoSchema.makeContainer(inMemory: true)
         context = ModelContext(container)
+        attachmentRoot = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         conversation = Conversation(modelID: "model")
         context.insert(conversation)
-        controller = ChatSessionController(service: service, modelContext: context, attachmentStore: AttachmentStore(rootURL: FileManager.default.temporaryDirectory), syncScheduler: scheduler, settings: ChatSessionSettings(modelID: "model", supportsVision: supportsVision))
+        controller = ChatSessionController(service: service, modelContext: context, attachmentStore: AttachmentStore(rootURL: attachmentRoot), syncScheduler: scheduler, settings: ChatSessionSettings(modelID: "model", supportsVision: supportsVision))
     }
 
     @discardableResult func add(role: MessageRole, content: String, sequence: Int, generationState: GenerationState = .none) -> Message {
@@ -170,12 +219,22 @@ final class ChatSessionControllerTests: XCTestCase {
         return message
     }
 
-    func waitForTerminal() async throws {
+    func waitForTerminal(conversation: Conversation? = nil) async throws {
+        let conversation = conversation ?? self.conversation
         for _ in 0..<100 {
             if !conversation.isGenerating { return }
             try await Task.sleep(for: .milliseconds(10))
         }
         XCTFail("generation did not finish")
+    }
+
+    func importedAttachment(named name: String, order: Int) async throws -> MessageAttachment {
+        let directory = attachmentRoot.appending(path: conversation.id.uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let path = "\(conversation.id.uuidString)/\(name)"
+        let data: Data = name == "earlier.png" ? Data([1, 2, 3]) : Data([4, 5, 6])
+        try data.write(to: attachmentRoot.appending(path: path))
+        return MessageAttachment(userOrder: order, originalFileName: name, utType: "public.png", mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: data.count, relativePath: path)
     }
 }
 

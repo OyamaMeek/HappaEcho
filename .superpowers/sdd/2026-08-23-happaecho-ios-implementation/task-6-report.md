@@ -31,6 +31,26 @@ xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'pla
 
 Result: `TEST SUCCEEDED`.
 
+## Fix round 1
+
+### RED/GREEN
+Added the review-required tests before implementation. The focused controller run failed as expected: duplicate sequences dispatched instead of blocking, and supported vision requests encoded only text. A first implementation pass then exposed the missing `AttachmentStore` persisted-file data seam at compile time. The corrected focused Task 4–6 command passed.
+
+### Fixes
+- Resolves persisted attachment bytes through `AttachmentStore`, generates ordered image content parts, and preserves `userOrder`.
+- Adopts Observation `@Observable`; mutable per-conversation state changes on every streaming delta.
+- Replaces the send-path `try?` persistence with transactional success/failure handling. Failed persistence retains an observable restored draft and prevents both stream dispatch and sync scheduling.
+- Rejects duplicate persisted sequences before dispatch and allocates subsequent values from the maximum existing sequence.
+- Strengthens active cross-conversation, continuation-prefix, context-limit restoration, streaming-delta, image-order, and duplicate-sequence test coverage.
+
+### Verification
+
+```bash
+xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/ChatSessionControllerTests -only-testing:HappaEchoTests/AttachmentStoreTests -only-testing:HappaEchoTests/MultimodalRequestBodyTests -only-testing:HappaEchoTests/OpenAICompatibleClientTests -only-testing:HappaEchoTests/ServerSentEventParserTests
+```
+
+Result: `TEST SUCCEEDED` — affected Task 4–6 suites passed (Chat session 15; AttachmentStore 16; previously established client/parser/body coverage also passed).
+
 ## Commit
 `PLACEHOLDER`
 

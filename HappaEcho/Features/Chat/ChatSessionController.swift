@@ -1,7 +1,9 @@
 import Foundation
 import SwiftData
+import Observation
 
 @MainActor
+@Observable
 final class ChatSessionController {
     private let service: ChatCompletionService
     private let modelContext: ModelContext
@@ -36,6 +38,10 @@ final class ChatSessionController {
 
     func send(text: String, attachments: [MessageAttachment], conversation: Conversation) async {
         guard tasks[conversation.id] == nil else { return }
+        guard hasUniqueSequences(in: conversation) else {
+            states[conversation.id] = .failed(message: "Message sequence invariant violated")
+            return
+        }
         guard attachments.isEmpty || settings.supportsVision else {
             states[conversation.id] = .blocked(.unsupportedVision)
             return
@@ -46,8 +52,18 @@ final class ChatSessionController {
             attachment.message = message
             message.attachments.append(attachment)
         }
-        persist(message, in: conversation)
-        beginGeneration(in: conversation, request: makeRequest(from: conversation), draft: ChatDraft(text: text, attachments: attachments))
+        guard persist(message, in: conversation) else {
+            drafts[conversation.id] = ChatDraft(text: text, attachments: attachments)
+            states[conversation.id] = .failed(message: "Unable to save message")
+            return
+        }
+        do {
+            let request = try await makeRequest(from: conversation)
+            beginGeneration(in: conversation, request: request, draft: ChatDraft(text: text, attachments: attachments))
+        } catch {
+            drafts[conversation.id] = ChatDraft(text: text, attachments: attachments)
+            states[conversation.id] = .failed(message: error.localizedDescription)
+        }
         await Task.yield()
     }
 
@@ -130,21 +146,44 @@ final class ChatSessionController {
         try? modelContext.save()
     }
 
-    private func persist(_ message: Message, in conversation: Conversation) {
+    private func persist(_ message: Message, in conversation: Conversation) -> Bool {
         message.conversation = conversation
         conversation.messages.append(message)
         conversation.updatedAt = .now
         modelContext.insert(message)
-        try? modelContext.save()
-        syncScheduler.enqueue(messageID: message.id)
+        do {
+            try modelContext.save()
+            syncScheduler.enqueue(messageID: message.id)
+            return true
+        } catch {
+            modelContext.delete(message)
+            conversation.messages.removeAll { $0.id == message.id }
+            return false
+        }
     }
 
     private func nextSequence(in conversation: Conversation) -> Int {
         (conversation.messages.map(\.sequence).max() ?? -1) + 1
     }
 
-    private func makeRequest(from conversation: Conversation) -> ChatRequest {
-        ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(conversation.sortedMessages.map(makeInput)))
+    private func hasUniqueSequences(in conversation: Conversation) -> Bool {
+        let sequences = conversation.messages.map(\.sequence)
+        return sequences.count == Set(sequences).count
+    }
+
+    private func makeRequest(from conversation: Conversation) async throws -> ChatRequest {
+        var messages: [ChatInputMessage] = []
+        for message in conversation.sortedMessages {
+            var content: [ChatContentPart] = [.text(message.content)]
+            if message.role == .user {
+                for attachment in message.attachments.sorted(by: { $0.userOrder < $1.userOrder }) {
+                    let data = try await attachmentStore.data(for: attachment)
+                    content.append(.image(.init(mimeType: attachment.mimeType, base64: data.base64EncodedString())))
+                }
+            }
+            messages.append(ChatInputMessage(role: message.role == .user ? .user : .assistant, content: content))
+        }
+        return ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(messages))
     }
 
     private func withSystemPrompt(_ messages: [ChatInputMessage]) -> [ChatInputMessage] {

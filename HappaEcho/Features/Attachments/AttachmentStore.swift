@@ -75,6 +75,10 @@ actor AttachmentStore {
         try? fileManager.removeItem(at: url)
     }
 
+    func data(for attachment: MessageAttachment) throws -> Data {
+        try Data(contentsOf: resolvedURL(for: attachment.relativePath), options: .mappedIfSafe)
+    }
+
     func deleteDraft(_ attachment: MessageAttachment) throws {
         let url = try resolvedURL(for: attachment.relativePath)
         try? fileManager.removeItem(at: url)
