@@ -50,7 +50,7 @@ final class StubURLProtocol: URLProtocol {
 
     override func stopLoading() {
         Self.stopLoadingCount += 1
-        client?.urlProtocolDidFinishLoading(self)
+        client?.urlProtocol(self, didFailWithError: URLError(.cancelled))
     }
 }
 

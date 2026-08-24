@@ -11,3 +11,9 @@ OUTCOME: Timed out after 180 seconds (exit 124) during focused test build/run; n
 SELF-REVIEW: Diff is limited to the requested cancellation implementation and unit test. No unrelated files changed.
 CONCERNS: Focused xcodebuild did not complete within the finite timeout, so end-to-end test success remains unverified.
 
+FOLLOW-UP STATUS: Cancellation-only xcodebuild timed out after 120 seconds while the test request itself remained active and hit its 60-second URLSession timeout; this reproduced the fixture/cancellation concern rather than producing a pass/fail result.
+FOLLOW-UP FIX: Added `try Task.checkCancellation()` immediately after the transport event loop so normal transport completion cannot become EOF after consumer cancellation. Updated StubURLProtocol.stopLoading to report URLError.cancelled rather than normal URLProtocol completion, modeling cancellation accurately.
+FOLLOW-UP COMMAND: timeout 120s xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/OpenAICompatibleClientTests/testCancellingStreamPropagatesCancellationAndCancelsTransport
+FOLLOW-UP OUTCOME: Timed out (exit 124); no completed test result. `git diff --check` passed.
+FOLLOW-UP SELF-REVIEW: Production change is one post-loop cancellation checkpoint; fixture change is limited to cancellation semantics. No unrelated code changed.
+

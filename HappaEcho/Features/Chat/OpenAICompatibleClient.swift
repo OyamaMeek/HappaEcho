@@ -71,6 +71,7 @@ final class OpenAICompatibleClient: ChatCompletionService {
                     } onCancel: {
                         transport.cancel()
                     }
+                    try Task.checkCancellation()
                     guard let http = response else { throw HTTPError.invalidResponse }
                     guard (200..<300).contains(http.statusCode) else {
                         throw HTTPError.statusCode(http.statusCode, message: Self.parseProviderMessage(body))
