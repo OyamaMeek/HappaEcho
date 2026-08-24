@@ -128,18 +128,36 @@ final class ChatSessionControllerTests: XCTestCase {
         XCTAssertEqual(fixture.conversation.sortedMessages[1].generationState, .failedPartial)
     }
 
-    func testContinuationIncludesSavedPartialAssistantExactlyOnce() async throws {
+    func testContinuationIncludesPriorImageAndSavedPartialAssistantExactlyOnce() async throws {
         let fixture = try Fixture()
-        fixture.add(role: .user, content: "Question", sequence: 0)
+        let image = try await fixture.importedAttachment(named: "earlier.png", order: 0)
+        let user = fixture.add(role: .user, content: "Question", sequence: 0)
+        image.message = user
+        user.attachments.append(image)
         let partial = fixture.add(role: .assistant, content: "Partial", sequence: 1, generationState: .failedPartial)
         fixture.service.streams = [.manual]
 
         await fixture.controller.continueGeneration(after: partial, in: fixture.conversation)
 
         XCTAssertEqual(fixture.service.requests[0].messages, [
-            ChatInputMessage(role: .user, content: [.text("Question")]),
+            ChatInputMessage(role: .user, content: [
+                .text("Question"),
+                .image(.init(mimeType: "image/png", base64: "AQID"))
+            ]),
             ChatInputMessage(role: .assistant, content: [.text("Partial")])
         ])
+    }
+
+    func testContinuationWithDuplicateSequenceBlocksDispatch() async throws {
+        let fixture = try Fixture()
+        fixture.add(role: .user, content: "Question", sequence: 0)
+        let partial = fixture.add(role: .assistant, content: "Partial", sequence: 0, generationState: .failedPartial)
+        fixture.service.streams = [.manual]
+
+        await fixture.controller.continueGeneration(after: partial, in: fixture.conversation)
+
+        XCTAssertTrue(fixture.service.requests.isEmpty)
+        XCTAssertEqual(fixture.controller.state(for: fixture.conversation.id), .failed(message: "Message sequence invariant violated"))
     }
 
     func testOtherConversationGenerationContinuesWhileSecondConversationSends() async throws {
@@ -181,6 +199,28 @@ final class ChatSessionControllerTests: XCTestCase {
         XCTAssertEqual(fixture.controller.restoredDraft(for: fixture.conversation.id)?.text, "Draft")
         XCTAssertEqual(fixture.controller.restoredDraft(for: fixture.conversation.id)?.attachments.count, 1)
         XCTAssertEqual(fixture.conversation.sortedMessages.count, 1)
+    }
+
+    func testContextLimitRetryReusesPersistedUserTurnWithoutDuplication() async throws {
+        let fixture = try Fixture()
+        let attachment = try await fixture.importedAttachment(named: "earlier.png", order: 0)
+        fixture.service.streams = [
+            .failure(ChatServiceError.invalidRequest(message: "maximum context length exceeded")),
+            .manual
+        ]
+
+        await fixture.controller.send(text: "Draft", attachments: [attachment], conversation: fixture.conversation)
+        try await fixture.waitForTerminal()
+        await fixture.controller.retryRestoredDraft(in: fixture.conversation)
+
+        XCTAssertEqual(fixture.conversation.sortedMessages.count, 1)
+        XCTAssertEqual(fixture.service.requests.count, 2)
+        XCTAssertEqual(fixture.service.requests[1].messages, [
+            ChatInputMessage(role: .user, content: [
+                .text("Draft"),
+                .image(.init(mimeType: "image/png", base64: "AQID"))
+            ])
+        ])
     }
 
     func testStreamingStatePublishesDeltas() async throws {

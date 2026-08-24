@@ -29,6 +29,13 @@ enum ChatSessionState: Equatable, Sendable {
 }
 
 struct ChatDraft: Equatable {
+    let messageID: UUID?
     let text: String
     let attachments: [MessageAttachment]
+
+    init(messageID: UUID? = nil, text: String, attachments: [MessageAttachment]) {
+        self.messageID = messageID
+        self.text = text
+        self.attachments = attachments
+    }
 }

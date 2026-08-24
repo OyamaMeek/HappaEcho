@@ -59,7 +59,7 @@ final class ChatSessionController {
         }
         do {
             let request = try await makeRequest(from: conversation)
-            beginGeneration(in: conversation, request: request, draft: ChatDraft(text: text, attachments: attachments))
+            beginGeneration(in: conversation, request: request, draft: ChatDraft(messageID: message.id, text: text, attachments: attachments))
         } catch {
             drafts[conversation.id] = ChatDraft(text: text, attachments: attachments)
             states[conversation.id] = .failed(message: error.localizedDescription)
@@ -69,8 +69,33 @@ final class ChatSessionController {
 
     func continueGeneration(after message: Message, in conversation: Conversation) async {
         guard message.generationState == .failedPartial, tasks[conversation.id] == nil else { return }
-        let messages = conversation.sortedMessages.filter { $0.sequence <= message.sequence }.map(makeInput)
-        beginGeneration(in: conversation, request: ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(messages)), draft: nil)
+        guard hasUniqueSequences(in: conversation) else {
+            states[conversation.id] = .failed(message: "Message sequence invariant violated")
+            return
+        }
+        do {
+            let messages = try await buildInputMessages(from: conversation, through: message.sequence)
+            beginGeneration(in: conversation, request: ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(messages)), draft: nil)
+        } catch {
+            states[conversation.id] = .failed(message: error.localizedDescription)
+        }
+        await Task.yield()
+    }
+
+    func retryRestoredDraft(in conversation: Conversation) async {
+        guard let draft = drafts[conversation.id], tasks[conversation.id] == nil else { return }
+        guard let messageID = draft.messageID,
+              conversation.messages.contains(where: { $0.id == messageID }) else {
+            await send(text: draft.text, attachments: draft.attachments, conversation: conversation)
+            return
+        }
+        do {
+            let request = try await makeRequest(from: conversation)
+            drafts[conversation.id] = nil
+            beginGeneration(in: conversation, request: request, draft: draft)
+        } catch {
+            states[conversation.id] = .failed(message: error.localizedDescription)
+        }
         await Task.yield()
     }
 
@@ -172,8 +197,12 @@ final class ChatSessionController {
     }
 
     private func makeRequest(from conversation: Conversation) async throws -> ChatRequest {
+        ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(try await buildInputMessages(from: conversation)))
+    }
+
+    private func buildInputMessages(from conversation: Conversation, through sequence: Int? = nil) async throws -> [ChatInputMessage] {
         var messages: [ChatInputMessage] = []
-        for message in conversation.sortedMessages {
+        for message in conversation.sortedMessages where sequence.map({ message.sequence <= $0 }) ?? true {
             var content: [ChatContentPart] = [.text(message.content)]
             if message.role == .user {
                 for attachment in message.attachments.sorted(by: { $0.userOrder < $1.userOrder }) {
@@ -183,7 +212,7 @@ final class ChatSessionController {
             }
             messages.append(ChatInputMessage(role: message.role == .user ? .user : .assistant, content: content))
         }
-        return ChatRequest(model: conversation.modelID ?? settings.modelID, messages: withSystemPrompt(messages))
+        return messages
     }
 
     private func withSystemPrompt(_ messages: [ChatInputMessage]) -> [ChatInputMessage] {

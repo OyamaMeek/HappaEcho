@@ -51,6 +51,24 @@ xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'pla
 
 Result: `TEST SUCCEEDED` — affected Task 4–6 suites passed (Chat session 15; AttachmentStore 16; previously established client/parser/body coverage also passed).
 
+## Fix round 2
+
+### RED/GREEN
+New continuation/image, continuation-sequence-invariant, and context-limit retry tests were added first. The focused RED compile failed as expected because `ChatSessionController.retryRestoredDraft(in:)` did not exist. The shared async context builder and persisted-message draft reference made the new cases green.
+
+### Fixes
+- `continueGeneration` now uses the same attachment-aware async ordered context builder as `send`, preserving prior user images as image content parts.
+- Continuation now rejects duplicate persisted sequences before it can dispatch.
+- Context-limit drafts retain the persisted user `messageID`; retry reuses that exact message and its attachments rather than inserting a second logical user turn.
+
+### Verification
+
+```bash
+xcodebuild test -project HappaEcho.xcodeproj -scheme HappaEcho -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:HappaEchoTests/ChatSessionControllerTests -only-testing:HappaEchoTests/AttachmentStoreTests -only-testing:HappaEchoTests/MultimodalRequestBodyTests -only-testing:HappaEchoTests/OpenAICompatibleClientTests -only-testing:HappaEchoTests/ServerSentEventParserTests
+```
+
+Result: `TEST SUCCEEDED` — 73 tests, 0 failures (ChatSessionController 17, AttachmentStore 16, MultimodalRequestBody 6, OpenAICompatibleClient 19, ServerSentEventParser 15).
+
 ## Commit
 `PLACEHOLDER`
 
