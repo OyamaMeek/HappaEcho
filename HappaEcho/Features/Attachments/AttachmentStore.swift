@@ -40,9 +40,14 @@ actor AttachmentStore {
         let contentType = UTType(filenameExtension: sourceURL.pathExtension) ?? .image
         let destination = try destinationURL(conversationID: conversationID, name: name, contentType: contentType)
         try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let temporary = destination.deletingLastPathComponent().appending(path: ".\(UUID().uuidString).import")
         do {
-            try fileManager.copyItem(at: sourceURL, to: destination)
-        } catch { throw AttachmentStoreError.unreadableFile }
+            try Data(contentsOf: sourceURL, options: .mappedIfSafe).write(to: temporary, options: .atomic)
+            try fileManager.moveItem(at: temporary, to: destination)
+        } catch {
+            try? fileManager.removeItem(at: temporary)
+            throw AttachmentStoreError.unreadableFile
+        }
         return try validateAndDescribe(destination: destination, conversationID: conversationID, originalName: name, fallbackType: contentType)
     }
 
@@ -93,7 +98,8 @@ actor AttachmentStore {
         let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
         guard width > 0, height > 0 else { try? fileManager.removeItem(at: destination); throw AttachmentStoreError.invalidImage }
         let detectedType = CGImageSourceGetType(source).flatMap { UTType($0 as String) } ?? fallbackType
-        guard let mime = detectedType.preferredMIMEType else { try? fileManager.removeItem(at: destination); throw AttachmentStoreError.invalidImage }
+        guard let mime = detectedType.preferredMIMEType,
+              (try? JSONEncoder().encode(mime)) != nil else { try? fileManager.removeItem(at: destination); throw AttachmentStoreError.invalidImage }
         let size = try destination.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         let relative = destination.path.replacingOccurrences(of: rootURL.path + "/", with: "")
         return ImportedAttachment(id: UUID(), originalFileName: originalName, utType: detectedType.identifier, mimeType: mime, pixelWidth: width, pixelHeight: height, fileSize: size, relativePath: relative)
