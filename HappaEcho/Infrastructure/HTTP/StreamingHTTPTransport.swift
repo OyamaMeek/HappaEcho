@@ -20,6 +20,22 @@ extension StreamingHTTPTransport {
     func start(request: URLRequest) -> any StreamingHTTPTask { start(request: request, bodyFileURL: nil) }
 }
 
+final class FileBodyStreamProvider: BodyStreamProviding, @unchecked Sendable {
+    private let fileURL: URL
+
+    init(fileURL: URL) {
+        self.fileURL = fileURL
+    }
+
+    func makeBodyStream() -> InputStream? {
+        InputStream(url: fileURL)
+    }
+}
+
+protocol BodyStreamProviding: AnyObject {
+    func makeBodyStream() -> InputStream?
+}
+
 final class URLSessionStreamingHTTPTransport: StreamingHTTPTransport {
     private let session: URLSession
 
@@ -37,7 +53,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
     private let stateLock = NSLock()
     private var continuation: AsyncThrowingStream<StreamingHTTPEvent, Error>.Continuation?
     private var task: URLSessionDataTask!
-    private var bodyStreamURL: URL?
+    private var bodyStreamProvider: (any BodyStreamProviding)?
     private var delegateSession: URLSession?
     private var finished = false
 
@@ -51,7 +67,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
         delegateQueue.maxConcurrentOperationCount = 1
         let delegateSession = URLSession(configuration: session.configuration, delegate: self, delegateQueue: delegateQueue)
         self.delegateSession = delegateSession
-        bodyStreamURL = bodyFileURL
+        bodyStreamProvider = bodyFileURL.map(FileBodyStreamProvider.init(fileURL:))
         task = delegateSession.dataTask(with: request)
         task.resume()
     }
@@ -63,7 +79,7 @@ private final class URLSessionStreamingHTTPTask: NSObject, StreamingHTTPTask, UR
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, needNewBodyStream completionHandler: @escaping (InputStream?) -> Void) {
-        completionHandler(bodyStreamURL.flatMap(InputStream.init(url:)))
+        completionHandler(bodyStreamProvider?.makeBodyStream())
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {

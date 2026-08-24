@@ -8,6 +8,16 @@ protocol PhotoDataLoading: AnyObject {
     func loadData(typeIdentifier: String, completion: @escaping (Data?, Error?) -> Void)
 }
 
+protocol PhotoProviderDataLoading: AnyObject {
+    func loadData(typeIdentifier: String, progress: @escaping (Double) -> Void, completion: @escaping (Data?, Error?) -> Void)
+}
+
+extension PhotoProviderDataLoading where Self: PhotoDataLoading {
+    func loadData(typeIdentifier: String, progress: @escaping (Double) -> Void, completion: @escaping (Data?, Error?) -> Void) {
+        loadData(typeIdentifier: typeIdentifier, completion: completion)
+    }
+}
+
 extension NSItemProvider: PhotoDataLoading {
     var typeIdentifiers: [String] { registeredTypeIdentifiers }
     func loadData(typeIdentifier: String, completion: @escaping (Data?, Error?) -> Void) { loadDataRepresentation(forTypeIdentifier: typeIdentifier, completionHandler: completion) }
@@ -36,10 +46,22 @@ final class PhotoLibraryImporter: NSObject {
         guard let typeIdentifier = provider.typeIdentifiers.first(where: { UTType($0)?.conforms(to: .image) == true }),
               let type = UTType(typeIdentifier) else { throw AttachmentStoreError.invalidImage }
         let data: Data = try await withCheckedThrowingContinuation { continuation in
-            provider.loadData(typeIdentifier: typeIdentifier) { data, error in
-                if let error { continuation.resume(throwing: error) }
-                else if let data { continuation.resume(returning: data) }
-                else { continuation.resume(throwing: AttachmentStoreError.unreadableFile) }
+            if let progressLoader = provider as? any PhotoProviderDataLoading {
+                progressLoader.loadData(typeIdentifier: typeIdentifier, progress: { [weak self] value in
+                    Task { @MainActor in self?.progress?(value) }
+                }, completion: { [weak self] data, error in
+                    Task { @MainActor in
+                        if let error { continuation.resume(throwing: error) }
+                        else if let data { continuation.resume(returning: data) }
+                        else { continuation.resume(throwing: AttachmentStoreError.unreadableFile) }
+                    }
+                })
+            } else {
+                provider.loadData(typeIdentifier: typeIdentifier) { data, error in
+                    if let error { continuation.resume(throwing: error) }
+                    else if let data { continuation.resume(returning: data) }
+                    else { continuation.resume(throwing: AttachmentStoreError.unreadableFile) }
+                }
             }
         }
         progress?(1)

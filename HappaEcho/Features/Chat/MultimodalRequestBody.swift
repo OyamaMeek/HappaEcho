@@ -6,8 +6,10 @@ struct PreparedHTTPBody: @unchecked Sendable {
     let contentType: String
     let cleanup: @Sendable () -> Void
 
+    private var streamProvider: FileBodyStreamProvider { FileBodyStreamProvider(fileURL: fileURL) }
+
     /// Creates a new stream each time, including retries and redirects.
-    func openStream() -> InputStream? { InputStream(url: fileURL) }
+    func openStream() -> InputStream? { streamProvider.makeBodyStream() }
 }
 
 struct MultimodalRequestBodyLimits: Sendable {

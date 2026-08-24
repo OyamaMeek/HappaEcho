@@ -36,6 +36,20 @@ final class MultimodalRequestBodyTests: XCTestCase {
         XCTAssertNotNil(prepared.openStream())
     }
 
+    func testRetryBodyStreamProviderReturnsFreshReadableStreamAfterFirstIsConsumed() throws {
+        let fileURL = root.appending(path: "body.json")
+        let expected = Data("retry body".utf8)
+        try expected.write(to: fileURL)
+        let provider = FileBodyStreamProvider(fileURL: fileURL)
+
+        let first = try XCTUnwrap(provider.makeBodyStream())
+        XCTAssertEqual(readAll(first), expected)
+        let retransmission = try XCTUnwrap(provider.makeBodyStream())
+
+        XCTAssertEqual(readAll(retransmission), expected)
+        XCTAssertFalse(first === retransmission)
+    }
+
     func testConfiguredImageLimitFailsBeforeWritingRequest() async throws {
         let imageURL = root.appending(path: "fixture.png")
         try png.write(to: imageURL)
@@ -103,4 +117,17 @@ final class MultimodalRequestBodyTests: XCTestCase {
 private func XCTAssertThrowsErrorAsync<T>(_ expression: @autoclosure () async throws -> T, _ handler: (Error) -> Void) async {
     do { _ = try await expression(); XCTFail("Expected error") }
     catch { handler(error) }
+}
+
+private func readAll(_ stream: InputStream) -> Data {
+    stream.open()
+    defer { stream.close() }
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 1_024)
+    while stream.hasBytesAvailable {
+        let count = stream.read(&buffer, maxLength: buffer.count)
+        guard count > 0 else { break }
+        data.append(buffer, count: count)
+    }
+    return data
 }

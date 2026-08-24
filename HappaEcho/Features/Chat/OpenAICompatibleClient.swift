@@ -50,7 +50,7 @@ final class OpenAICompatibleClient: ChatCompletionService {
 
     /// Streams a file-backed multimodal request, releasing its temporary body on every terminal path.
     func stream(request: ChatRequest, body: MultimodalRequestBody) -> AsyncThrowingStream<String, Error> {
-        stream(request: request, body: body)
+        stream(request: request, body: Optional(body))
     }
 
     private func stream(request: ChatRequest, body: MultimodalRequestBody?) -> AsyncThrowingStream<String, Error> {

@@ -117,6 +117,12 @@ final class OpenAICompatibleClientTests: XCTestCase {
         ])
     }
 
+    private func makePreparedBody() throws -> MultimodalRequestBody {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return MultimodalRequestBody(request: sampleRequest(), attachmentsByMessage: [], temporaryDirectory: root)
+    }
+
     private func titleRequest() -> TitleRequest {
         TitleRequest(model: "gpt-test", messages: [
             ChatInputMessage(role: .user, content: [.text("标题")]),
@@ -129,6 +135,14 @@ final class OpenAICompatibleClientTests: XCTestCase {
             pieces.append(piece)
         }
         return pieces
+    }
+
+    private func eventually(_ condition: @escaping () -> Bool) async -> Bool {
+        for _ in 0..<100 {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
     }
 
     private func assertStreamError(
@@ -291,7 +305,56 @@ final class OpenAICompatibleClientTests: XCTestCase {
         XCTAssertEqual(task.cancelCount, 1)
     }
 
-    // MARK: - Title generation
+    // MARK: - Prepared body lifecycle
+
+    func testPreparedBodyIsRemovedAfterSuccessfulStreamCompletion() async throws {
+        let task = successfulTask([Data("data: [DONE]\n\n".utf8)])
+        let transport = FakeStreamingHTTPTransport()
+        transport.enqueue(task: task)
+        let body = try makePreparedBody()
+
+        _ = try await collect(OpenAICompatibleClient(configuration: .init(endpoint: Self.endpoint, apiKey: "sk-test"), streamingTransport: transport).stream(request: sampleRequest(), body: body))
+
+        let fileURL = try XCTUnwrap(task.bodyFileURL)
+        let wasRemoved = await eventually { !FileManager.default.fileExists(atPath: fileURL.path) }
+        XCTAssertTrue(wasRemoved)
+    }
+
+    func testPreparedBodyIsRemovedWhenConsumerCancels() async throws {
+        let task = FakeStreamingHTTPTask()
+        let transport = FakeStreamingHTTPTransport()
+        transport.enqueue(task: task)
+        let stream = OpenAICompatibleClient(configuration: .init(endpoint: Self.endpoint, apiKey: "sk-test"), streamingTransport: transport).stream(request: sampleRequest(), body: try makePreparedBody())
+        let consumer = Task { try await self.collect(stream) }
+        await transport.waitForRequest()
+        let fileURL = try XCTUnwrap(task.bodyFileURL)
+
+        consumer.cancel()
+        _ = await consumer.result
+
+        let wasRemoved = await eventually { !FileManager.default.fileExists(atPath: fileURL.path) }
+        XCTAssertTrue(wasRemoved)
+    }
+
+    func testPreparedBodyIsRemovedAfterTerminalTransportError() async throws {
+        let task = FakeStreamingHTTPTask()
+        task.finish(throwing: URLError(.networkConnectionLost))
+        let transport = FakeStreamingHTTPTransport()
+        transport.enqueue(task: task)
+        let body = try makePreparedBody()
+
+        do {
+            _ = try await collect(OpenAICompatibleClient(configuration: .init(endpoint: Self.endpoint, apiKey: "sk-test"), streamingTransport: transport).stream(request: sampleRequest(), body: body))
+            XCTFail("Expected network error")
+        } catch let error as ChatServiceError {
+            XCTAssertEqual(error, .network(code: URLError.networkConnectionLost.rawValue))
+        }
+
+        let fileURL = try XCTUnwrap(task.bodyFileURL)
+        let wasRemoved = await eventually { !FileManager.default.fileExists(atPath: fileURL.path) }
+        XCTAssertTrue(wasRemoved)
+    }
+
 
     func testGenerateTitleReturnsContent() async throws {
         let title = try await makeTitleClient { _ in
@@ -367,6 +430,7 @@ private final class FakeStreamingHTTPTransport: StreamingHTTPTransport {
     func start(request: URLRequest, bodyFileURL: URL?) -> any StreamingHTTPTask {
         let task = queuedTasks.removeFirst()
         task.request = request
+        task.bodyFileURL = bodyFileURL
         requestStartedContinuation.yield(())
         return task
     }
@@ -383,6 +447,20 @@ private final class FakeStreamingHTTPTask: StreamingHTTPTask {
     private let stateLock = NSLock()
     private var _cancelCount = 0
     private var _request: URLRequest?
+    private var _bodyFileURL: URL?
+
+    var bodyFileURL: URL? {
+        get {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+            return _bodyFileURL
+        }
+        set {
+            stateLock.lock()
+            _bodyFileURL = newValue
+            stateLock.unlock()
+        }
+    }
 
     var cancelCount: Int {
         stateLock.lock()

@@ -1,4 +1,5 @@
 import XCTest
+import UniformTypeIdentifiers
 @testable import HappaEcho
 
 final class AttachmentStoreTests: XCTestCase {
@@ -49,6 +50,46 @@ final class AttachmentStoreTests: XCTestCase {
         XCTAssertFalse(attachment.relativePath.contains(".."))
     }
 
+    @MainActor
+    func testPhotoProviderTransfersExactBytesAndReportsCompleteProgress() async throws {
+        let provider = FixturePhotoDataLoader(data: png, suggestedName: "icloud-fixture.png", typeIdentifier: UTType.png.identifier, progressValues: [0.25, 0.75])
+        let importer = PhotoLibraryImporter(store: AttachmentStore(rootURL: root))
+        var progress: [Double] = []
+        importer.progress = { progress.append($0) }
+
+        let attachment = try await importer.importProvider(provider, conversationID: UUID())
+
+        XCTAssertEqual(try Data(contentsOf: root.appending(path: attachment.relativePath)), png)
+        XCTAssertEqual(progress, [0, 0.25, 0.75, 1])
+    }
+
+    @MainActor
+    func testPhotoPickerConfigurationUsesCurrentAssetRepresentation() {
+        XCTAssertEqual(PhotoLibraryImporter.pickerConfiguration().preferredAssetRepresentationMode, .current)
+    }
+
+    func testSecurityScopedAccessReleasesAfterSuccessfulCopy() async throws {
+        let source = root.appending(path: "source.png")
+        try png.write(to: source)
+        let scope = RecordingSecurityScope()
+
+        _ = try await AttachmentStore(rootURL: root, securityScope: scope).importFile(from: source, conversationID: UUID())
+
+        XCTAssertEqual(scope.events, [.acquire(source), .release(source)])
+    }
+
+    func testSecurityScopedAccessReleasesAfterCopyError() async throws {
+        let source = root.appending(path: "missing.png")
+        let scope = RecordingSecurityScope()
+
+        do {
+            _ = try await AttachmentStore(rootURL: root, securityScope: scope).importFile(from: source, conversationID: UUID())
+            XCTFail("Expected unreadable file")
+        } catch AttachmentStoreError.unreadableFile { }
+
+        XCTAssertEqual(scope.events, [.acquire(source), .release(source)])
+    }
+
     func testInvalidTransferredDataDoesNotDeleteOtherDrafts() async throws {
         let store = AttachmentStore(rootURL: root)
         let conversationID = UUID()
@@ -74,5 +115,57 @@ final class AttachmentStoreTests: XCTestCase {
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appending(path: first.relativePath).path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: second.relativePath).path))
+    }
+}
+
+private final class FixturePhotoDataLoader: PhotoDataLoading, PhotoProviderDataLoading, @unchecked Sendable {
+    let data: Data
+    let suggestedName: String?
+    let typeIdentifiers: [String]
+    let progressValues: [Double]
+
+    init(data: Data, suggestedName: String, typeIdentifier: String, progressValues: [Double]) {
+        self.data = data
+        self.suggestedName = suggestedName
+        self.typeIdentifiers = [typeIdentifier]
+        self.progressValues = progressValues
+    }
+
+    func loadData(typeIdentifier: String, completion: @escaping (Data?, Error?) -> Void) {
+        completion(data, nil)
+    }
+
+    func loadData(typeIdentifier: String, progress: @escaping (Double) -> Void, completion: @escaping (Data?, Error?) -> Void) {
+        progressValues.forEach(progress)
+        completion(data, nil)
+    }
+}
+
+private final class RecordingSecurityScope: SecurityScopedResourceAccessing, @unchecked Sendable {
+    enum Event: Equatable {
+        case acquire(URL)
+        case release(URL)
+    }
+
+    private let lock = NSLock()
+    private var recordedEvents: [Event] = []
+
+    var events: [Event] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedEvents
+    }
+
+    func acquire(_ url: URL) -> Bool {
+        lock.lock()
+        recordedEvents.append(.acquire(url))
+        lock.unlock()
+        return true
+    }
+
+    func release(_ url: URL) {
+        lock.lock()
+        recordedEvents.append(.release(url))
+        lock.unlock()
     }
 }
