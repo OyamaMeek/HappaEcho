@@ -18,9 +18,18 @@ extension NSItemProvider: PhotoFileRepresentationLoading {
 @MainActor
 final class PhotoLibraryImporter: NSObject {
     var progress: ((Double) -> Void)?
-    private let store: AttachmentStore
+    private let importFileOperation: @Sendable (URL, UUID) async throws -> ImportedAttachment
+    private let deleteDraftOperation: @Sendable (ImportedAttachment) async -> Void
 
-    init(store: AttachmentStore) { self.store = store }
+    init(store: AttachmentStore) {
+        importFileOperation = { url, conversationID in try await store.importFile(from: url, conversationID: conversationID) }
+        deleteDraftOperation = { attachment in try? await store.deleteDraft(attachment) }
+    }
+
+    init(importFile: @escaping @Sendable (URL, UUID) async throws -> ImportedAttachment, deleteDraft: @escaping @Sendable (ImportedAttachment) async -> Void) {
+        importFileOperation = importFile
+        deleteDraftOperation = deleteDraft
+    }
 
     static func pickerConfiguration() -> PHPickerConfiguration {
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
@@ -46,13 +55,13 @@ final class PhotoLibraryImporter: NSObject {
         }, onCancel: { state.cancel() })
         var imported: ImportedAttachment?
         do {
-            let attachment = try await store.importFile(from: staged, conversationID: conversationID)
+            let attachment = try await importFileOperation(staged, conversationID)
             imported = attachment
             try Task.checkCancellation()
             progress?(1)
             return attachment
         } catch {
-            if let imported { try? await store.deleteDraft(imported) }
+            if let imported { await deleteDraftOperation(imported) }
             throw error
         }
     }

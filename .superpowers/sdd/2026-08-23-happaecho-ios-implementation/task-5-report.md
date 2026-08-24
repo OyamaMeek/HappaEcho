@@ -81,3 +81,6 @@ After implementation, the controlled transfer, cancellation, provider-error, and
 
 ### Manual acceptance
 Added `docs/manual-integration-checklist.md` with a physical-device cloud-only case: observe intermediate progress, cancel with no draft or terminal state, complete a second import, and compare persisted bytes against the picker callback file. Execution is deferred until the Task 13 picker/progress UI exists.
+
+### Lifecycle regression coverage (2026-08-24)
+New controlled seams and deterministic tests cover three reviewed cancellation races: cancellation observed after store import deletes the persisted `ImportedAttachment`; a delayed provider completion after cancellation cannot recreate a staging artifact; and queued KVO progress is suppressed when cancellation wins before its main-actor closure executes. RED first exposed the missing injected import/delete seams; GREEN Task 4/5 result: **56 tests passed, 0 failures**.

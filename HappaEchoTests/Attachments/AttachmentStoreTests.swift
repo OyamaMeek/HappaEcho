@@ -10,6 +10,7 @@ final class AttachmentStoreTests: XCTestCase {
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appending(path: "HappaEcho-photo-staging", directoryHint: .isDirectory))
     }
 
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
@@ -113,6 +114,56 @@ final class AttachmentStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testCancellationAfterStoreImportDeletesPersistedAttachment() async throws {
+        let provider = ControlledPhotoFileProvider(data: png, root: root, typeIdentifier: UTType.png.identifier)
+        let gate = ImportGate()
+        let persisted = ImportedAttachment(id: UUID(), originalFileName: "persisted.png", utType: UTType.png.identifier, mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: png.count, relativePath: "persisted.png")
+        let importer = PhotoLibraryImporter(importFile: { _, _ in
+            await gate.waitUntilReleased()
+            return persisted
+        }, deleteDraft: { attachment in await gate.recordDeletion(attachment) })
+        let task = Task { try await importer.importProvider(provider, conversationID: UUID()) }
+        await provider.waitForLoad()
+        provider.completeAndDeleteSource()
+        await gate.waitUntilImportBegins()
+        task.cancel()
+        await gate.release()
+        do { _ = try await task.value; XCTFail("Expected cancellation") } catch is CancellationError { }
+        let deleted = await gate.deleted
+        XCTAssertEqual(deleted, [persisted])
+    }
+
+    @MainActor
+    func testLateProviderCompletionAfterCancellationDoesNotRecreateStagingFile() async throws {
+        let provider = ControlledPhotoFileProvider(data: png, root: root, typeIdentifier: UTType.png.identifier)
+        let importer = PhotoLibraryImporter(store: AttachmentStore(rootURL: root))
+        let task = Task { try await importer.importProvider(provider, conversationID: UUID()) }
+        await provider.waitForLoad()
+        task.cancel()
+        do { _ = try await task.value; XCTFail("Expected cancellation") } catch is CancellationError { }
+        provider.completeAndDeleteSource()
+        try? await Task.sleep(for: .milliseconds(25))
+        let staging = FileManager.default.temporaryDirectory.appending(path: "HappaEcho-photo-staging", directoryHint: .isDirectory)
+        let files = (try? FileManager.default.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil)) ?? []
+        XCTAssertFalse(files.contains { $0.lastPathComponent.hasSuffix(".png") })
+    }
+
+    @MainActor
+    func testQueuedProgressIsNotDeliveredAfterCancellation() async throws {
+        let provider = ControlledPhotoFileProvider(data: png, root: root, typeIdentifier: UTType.png.identifier)
+        let importer = PhotoLibraryImporter(store: AttachmentStore(rootURL: root))
+        var values: [Double] = []
+        importer.progress = { values.append($0) }
+        let task = Task { try await importer.importProvider(provider, conversationID: UUID()) }
+        await provider.waitForLoad()
+        provider.reportProgress(50)
+        task.cancel()
+        do { _ = try await task.value; XCTFail("Expected cancellation") } catch is CancellationError { }
+        try? await Task.sleep(for: .milliseconds(25))
+        XCTAssertEqual(values, [0])
+    }
+
+    @MainActor
     func testPhotoPickerConfigurationUsesCurrentAssetRepresentation() {
         XCTAssertEqual(PhotoLibraryImporter.pickerConfiguration().preferredAssetRepresentationMode, .current)
     }
@@ -207,6 +258,25 @@ private final class ControlledPhotoFileProvider: PhotoFileRepresentationLoading,
     }
 
     func fail() { lock.lock(); let callback = completion; lock.unlock(); callback?(nil, nil) }
+}
+
+private actor ImportGate {
+    private var importStarted = false
+    private var released = false
+    private var deletedAttachments: [ImportedAttachment] = []
+
+    func waitUntilImportBegins() async {
+        while !importStarted { await Task.yield() }
+    }
+
+    func waitUntilReleased() async {
+        importStarted = true
+        while !released { await Task.yield() }
+    }
+
+    func release() { released = true }
+    func recordDeletion(_ attachment: ImportedAttachment) { deletedAttachments.append(attachment) }
+    var deleted: [ImportedAttachment] { deletedAttachments }
 }
 
 private final class RecordingSecurityScope: SecurityScopedResourceAccessing, @unchecked Sendable {
