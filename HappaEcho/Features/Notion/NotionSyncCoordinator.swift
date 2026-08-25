@@ -244,7 +244,6 @@ actor NotionSyncCoordinator {
 
     func cancel(conversationID: UUID) {
         workers[conversationID]?.cancel()
-        workers[conversationID] = nil
         queues[conversationID] = []
         metadataQueues.remove(conversationID)
     }
@@ -263,6 +262,9 @@ actor NotionSyncCoordinator {
             if workerTokens[conversationID] == token {
                 workers[conversationID] = nil
                 workerTokens[conversationID] = nil
+                if !(queues[conversationID] ?? []).isEmpty || metadataQueues.contains(conversationID) {
+                    startWorkerIfNeeded(for: conversationID)
+                }
             }
         }
         while !Task.isCancelled {
@@ -345,16 +347,28 @@ actor NotionSyncCoordinator {
                     try await store.saveAttachmentUploadID(attachmentID: attachment.id, uploadID: upload.id)
                     uploadID = upload.id
                 }
+                let requiresSend: Bool
+                var retrievedUpload: NotionFileUpload?
                 if attachment.uploadSentAt == nil {
-                    // A lost send response is ambiguous: retransmitting may upload the
-                    // same bytes again. Persist the send intent first, then let the
-                    // complete endpoint determine whether Notion accepted the upload.
                     try await store.markAttachmentSent(attachmentID: attachment.id)
+                    requiresSend = true
+                } else {
+                    let upload = try await attempt {
+                        try await self.service.retrieveFileUpload(uploadID: uploadID)
+                    }
+                    retrievedUpload = upload
+                    requiresSend = upload.status.lowercased() != "uploaded"
+                }
+                if requiresSend {
                     try await service.sendFile(uploadID: uploadID, fileURL: attachment.fileURL, contentType: attachment.contentType)
                 }
                 if attachment.remoteURL == nil {
-                    let completed = try await attempt { try await self.service.completeFileUpload(uploadID: uploadID) }
-                    try await store.saveAttachmentRemoteURL(attachmentID: attachment.id, remoteURL: completed.fileURL?.absoluteString)
+                    if let retrievedUpload, !requiresSend {
+                        try await store.saveAttachmentRemoteURL(attachmentID: attachment.id, remoteURL: retrievedUpload.fileURL?.absoluteString)
+                    } else {
+                        let completed = try await attempt { try await self.service.completeFileUpload(uploadID: uploadID) }
+                        try await store.saveAttachmentRemoteURL(attachmentID: attachment.id, remoteURL: completed.fileURL?.absoluteString)
+                    }
                 }
                 let imageBlockIDs = try await appendImageBlock(pageID: pageID, uploadID: uploadID, attachmentID: attachment.id)
                 guard let imageBlockID = imageBlockIDs.first else { throw NotionError.invalidResponse }

@@ -21,6 +21,7 @@ final class NotionClientTests: XCTestCase {
         StubURLProtocol.handlers[cursorComponents.url!] = handler
         StubURLProtocol.handlers[URL(string: "https://notion.example.test/v1/blocks/page/children?start_cursor=cursor")!.appending(queryItems: [])] = handler
         StubURLProtocol.handlers[endpoint.appending(path: "file_uploads")] = handler
+        StubURLProtocol.handlers[endpoint.appending(path: "file_uploads/upload")] = handler
         StubURLProtocol.handlers[endpoint.appending(path: "file_uploads/upload/send")] = handler
         StubURLProtocol.handlers[endpoint.appending(path: "file_uploads/upload/complete")] = handler
         let configuration = URLSessionConfiguration.ephemeral
@@ -85,6 +86,17 @@ final class NotionClientTests: XCTestCase {
         XCTAssertTrue(page.hasMore)
         XCTAssertEqual(page.nextCursor, "next")
         XCTAssertEqual(page.blocks.first?.plainText, "marker")
+    }
+
+    func testRetrievesFileUploadStatus() async throws {
+        let client = makeClient { request in
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(request.url?.path, "/v1/file_uploads/upload")
+            return .init(chunks: [Data(#"{"id":"upload","status":"uploaded","file":{"url":"https://files.test/image"}}"#.utf8)])
+        }
+
+        let upload = try await client.retrieveFileUpload(uploadID: "upload")
+        XCTAssertEqual(upload.status, "uploaded")
     }
 
     func testFileUploadLifecycleUsesExplicitStages() async throws {

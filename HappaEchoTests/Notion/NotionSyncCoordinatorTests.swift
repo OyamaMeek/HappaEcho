@@ -44,6 +44,25 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(fixture.message.confirmedBlockIDs, ["remote-marker"])
     }
 
+    func testCancelDoesNotStartAnotherWorkerBeforeOriginalExits() async throws {
+        let fixture = try Fixture(enabled: true)
+        await fixture.service.blockNextAppend()
+        await fixture.coordinator.enqueue(messageID: fixture.message.id)
+        for _ in 0..<100 where await fixture.service.appendCallCount() == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        await fixture.coordinator.cancel(conversationID: fixture.conversation.id)
+        await fixture.coordinator.enqueue(messageID: fixture.message.id)
+        let beforeRelease = await fixture.service.appendCallCount()
+        XCTAssertEqual(beforeRelease, 1)
+
+        await fixture.service.releaseAppend()
+        try await fixture.waitFor { fixture.message.syncState == .synced }
+        let calls = await fixture.service.appendCallCount()
+        XCTAssertEqual(calls, 2)
+    }
+
     func testMetadataWorkUpdatesExistingPageProperties() async throws {
         let fixture = try Fixture(enabled: true)
         fixture.conversation.bindNotionPage(databaseID: "database", pageID: "page")
@@ -73,6 +92,41 @@ final class NotionSyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(attachment.notionRemoteURL, "https://files.example.test/image.png")
         XCTAssertEqual(attachment.notionImageBlockID, "image-block")
         XCTAssertEqual(attachment.syncState, .synced)
+    }
+
+    func testRecoveryResendsPendingUploadAfterFailedSendIntent() async throws {
+        let fixture = try Fixture(enabled: true, withAttachment: true)
+        await fixture.service.failNextSend()
+
+        await fixture.coordinator.enqueue(messageID: fixture.message.id)
+        try await fixture.waitFor { fixture.message.syncState == .failed }
+
+        await fixture.coordinator.enqueue(messageID: fixture.message.id)
+        try await fixture.waitFor { fixture.message.syncState == .synced }
+
+        let sendCalls = await fixture.service.sendCallCount()
+        let retrieveCalls = await fixture.service.retrieveCallCount()
+        XCTAssertEqual(sendCalls, 2)
+        XCTAssertEqual(retrieveCalls, 1)
+    }
+
+    func testRecoverySkipsResendWhenRemoteUploadAlreadyCompleted() async throws {
+        let fixture = try Fixture(enabled: true, withAttachment: true)
+        await fixture.service.failNextSend()
+        await fixture.service.setRetrievedUploadStatus("uploaded")
+
+        await fixture.coordinator.enqueue(messageID: fixture.message.id)
+        try await fixture.waitFor { fixture.message.syncState == .failed }
+
+        await fixture.coordinator.enqueue(messageID: fixture.message.id)
+        try await fixture.waitFor { fixture.message.syncState == .synced }
+
+        let sendCalls = await fixture.service.sendCallCount()
+        let retrieveCalls = await fixture.service.retrieveCallCount()
+        let completeCalls = await fixture.service.completeCallCount()
+        XCTAssertEqual(sendCalls, 1)
+        XCTAssertEqual(retrieveCalls, 1)
+        XCTAssertEqual(completeCalls, 0)
     }
 
     @MainActor
@@ -135,9 +189,25 @@ final class NotionSyncCoordinatorTests: XCTestCase {
 actor FakeNotionService: NotionService {
     var operations: [String] = []
     var listedBlocks: [NotionBlock] = []
+    var appendCalls = 0
+    var appendBlocked = false
+    var appendContinuation: CheckedContinuation<Void, Never>?
+    var sendCalls = 0
+    var retrieveCalls = 0
+    var completeCalls = 0
+    var retrievedUploadStatus = "pending"
+    var shouldFailNextSend = false
 
     func recordedOperations() -> [String] { operations }
     func setListedBlocks(_ blocks: [NotionBlock]) { listedBlocks = blocks }
+    func blockNextAppend() { appendBlocked = true }
+    func appendCallCount() -> Int { appendCalls }
+    func sendCallCount() -> Int { sendCalls }
+    func retrieveCallCount() -> Int { retrieveCalls }
+    func completeCallCount() -> Int { completeCalls }
+    func failNextSend() { shouldFailNextSend = true }
+    func setRetrievedUploadStatus(_ status: String) { retrievedUploadStatus = status }
+    func releaseAppend() { appendBlocked = false; appendContinuation?.resume(); appendContinuation = nil }
 
     func createPage(_ request: NotionPageRequest) async throws -> NotionPage {
         operations.append("create:\(request.databaseID)")
@@ -149,7 +219,11 @@ actor FakeNotionService: NotionService {
     }
 
     func appendBlocks(pageID: String, blocks: [NotionBlock]) async throws -> [String] {
+        appendCalls += 1
         operations.append("append:\(pageID)")
+        if appendBlocked {
+            await withCheckedContinuation { appendContinuation = $0 }
+        }
         if blocks.contains(where: {
             if case .image = $0.kind { return true }
             return false
@@ -167,12 +241,27 @@ actor FakeNotionService: NotionService {
         return NotionFileUpload(id: "upload", status: "pending", file: nil)
     }
 
+    func retrieveFileUpload(uploadID: String) async throws -> NotionFileUpload {
+        retrieveCalls += 1
+        operations.append("upload:retrieve:\(uploadID)")
+        let file = retrievedUploadStatus == "uploaded"
+            ? NotionFileUpload.File(url: URL(string: "https://files.example.test/image.png"))
+            : nil
+        return NotionFileUpload(id: uploadID, status: retrievedUploadStatus, file: file)
+    }
+
     func sendFile(uploadID: String, fileURL: URL, contentType: String) async throws {
         _ = try Data(contentsOf: fileURL)
+        sendCalls += 1
         operations.append("upload:send:\(uploadID)")
+        if shouldFailNextSend {
+            shouldFailNextSend = false
+            throw NotionError.network(code: URLError.cannotConnectToHost.rawValue)
+        }
     }
 
     func completeFileUpload(uploadID: String) async throws -> NotionFileUpload {
+        completeCalls += 1
         operations.append("upload:complete:\(uploadID)")
         return NotionFileUpload(id: uploadID, status: "uploaded", file: .init(url: URL(string: "https://files.example.test/image.png")))
     }
