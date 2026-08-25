@@ -36,15 +36,16 @@ final class ChatSessionController {
         drafts[conversationID]
     }
 
-    func send(text: String, attachments: [MessageAttachment], conversation: Conversation) async {
-        guard tasks[conversation.id] == nil else { return }
+    @discardableResult
+    func send(text: String, attachments: [MessageAttachment], conversation: Conversation) async -> Bool {
+        guard tasks[conversation.id] == nil else { return false }
         guard hasUniqueSequences(in: conversation) else {
             states[conversation.id] = .failed(message: "Message sequence invariant violated")
-            return
+            return false
         }
         guard attachments.isEmpty || settings.supportsVision else {
             states[conversation.id] = .blocked(.unsupportedVision)
-            return
+            return false
         }
 
         let message = Message(role: .user, content: text, sequence: nextSequence(in: conversation))
@@ -55,7 +56,7 @@ final class ChatSessionController {
         guard persist(message, in: conversation) else {
             drafts[conversation.id] = ChatDraft(text: text, attachments: attachments)
             states[conversation.id] = .failed(message: "Unable to save message")
-            return
+            return false
         }
         do {
             let request = try await makeRequest(from: conversation)
@@ -65,6 +66,7 @@ final class ChatSessionController {
             states[conversation.id] = .failed(message: error.localizedDescription)
         }
         await Task.yield()
+        return true
     }
 
     func continueGeneration(after message: Message, in conversation: Conversation) async {

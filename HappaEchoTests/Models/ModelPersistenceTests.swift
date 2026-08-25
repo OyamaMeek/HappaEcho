@@ -100,6 +100,33 @@ final class ModelPersistenceTests: XCTestCase {
         XCTAssertEqual(try context.fetch(FetchDescriptor<NotionPageBinding>()), [])
     }
 
+    func testDeletionCoordinatorCancelsSyncAndRemovesConversationAttachments() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let conversation = Conversation()
+        context.insert(conversation)
+        try context.save()
+
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let attachmentDirectory = root.appending(path: conversation.id.uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: attachmentDirectory, withIntermediateDirectories: true)
+        try Data("fixture".utf8).write(to: attachmentDirectory.appending(path: "photo.png"))
+
+        let scheduler = RecordingScheduler()
+        let coordinator = ConversationDeletionCoordinator(
+            context: context,
+            scheduler: scheduler,
+            attachmentStore: AttachmentStore(rootURL: root)
+        )
+
+        await coordinator.delete(conversation: conversation)
+
+        XCTAssertEqual(scheduler.cancelledConversationIDs, [conversation.id])
+        XCTAssertTrue(try context.fetch(FetchDescriptor<Conversation>()).isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: attachmentDirectory.path))
+    }
+
     // MARK: - Settings defaults
 
     func testSettingsDefaultToOpenAICompatibleEndpoint() throws {
@@ -181,5 +208,15 @@ final class ModelPersistenceTests: XCTestCase {
         XCTAssertEqual(message.nextNotionBatchIndex, 2)
         XCTAssertEqual(message.confirmedBatchIDs, ["0", "1"])
         XCTAssertEqual(message.confirmedBlockIDs, ["block-1", "block-2", "block-3"])
+    }
+}
+
+private final class RecordingScheduler: NotionSyncScheduling, @unchecked Sendable {
+    private(set) var cancelledConversationIDs: [UUID] = []
+
+    func enqueue(messageID: UUID) {}
+
+    func cancel(conversationID: UUID) {
+        cancelledConversationIDs.append(conversationID)
     }
 }

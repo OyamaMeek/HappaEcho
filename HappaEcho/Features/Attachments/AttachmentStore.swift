@@ -84,6 +84,18 @@ actor AttachmentStore {
         try? fileManager.removeItem(at: url)
     }
 
+    func deleteConversationAttachments(conversationID: UUID) throws {
+        let directory = rootURL.appending(path: conversationID.uuidString, directoryHint: .isDirectory)
+        let root = rootURL.standardizedFileURL
+        let resolvedDirectory = directory.standardizedFileURL
+        guard resolvedDirectory.path.hasPrefix(root.path + "/"),
+              resolvedDirectory.resolvingSymlinksInPath().path.hasPrefix(root.resolvingSymlinksInPath().path + "/") else {
+            throw AttachmentStoreError.invalidRelativePath
+        }
+        guard fileManager.fileExists(atPath: resolvedDirectory.path) else { return }
+        try fileManager.removeItem(at: resolvedDirectory)
+    }
+
     func removeOrphans(keeping relativePaths: Set<String>) throws {
         guard fileManager.fileExists(atPath: rootURL.path) else { return }
         let allowed = Set(try relativePaths.map { try resolvedURL(for: $0).standardizedFileURL.path })

@@ -6,6 +6,7 @@ struct SidebarView: View {
     @Binding var selection: Conversation?
     @Binding var search: String
     let create: () -> Void
+    let requestDeletion: (Conversation) -> Void
 
     var body: some View {
         List(selection: $selection) {
@@ -20,6 +21,14 @@ struct SidebarView: View {
                         if conversation.isGenerating { Label("正在生成", systemImage: "ellipsis").font(.caption).foregroundStyle(.secondary) }
                     }
                 }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        requestDeletion(conversation)
+                    } label: {
+                        Label("删除对话", systemImage: "trash")
+                    }
+                }
+                .accessibilityHint("长按可删除此对话")
             }
         }.searchable(text: $search, prompt: "搜索对话").navigationTitle("HappaEcho")
     }

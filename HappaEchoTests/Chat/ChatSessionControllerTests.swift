@@ -182,8 +182,9 @@ final class ChatSessionControllerTests: XCTestCase {
         let fixture = try Fixture(supportsVision: false)
         let attachment = MessageAttachment(userOrder: 0, originalFileName: "a.png", utType: "public.png", mimeType: "image/png", pixelWidth: 1, pixelHeight: 1, fileSize: 1, relativePath: "a.png")
 
-        await fixture.controller.send(text: "Picture", attachments: [attachment], conversation: fixture.conversation)
+        let wasAccepted = await fixture.controller.send(text: "Picture", attachments: [attachment], conversation: fixture.conversation)
 
+        XCTAssertFalse(wasAccepted)
         XCTAssertTrue(fixture.conversation.messages.isEmpty)
         XCTAssertEqual(fixture.controller.state(for: fixture.conversation.id), .blocked(.unsupportedVision))
     }
@@ -281,6 +282,7 @@ final class ChatSessionControllerTests: XCTestCase {
 private final class FakeSyncScheduler: NotionSyncScheduling, @unchecked Sendable {
     var enqueued: [UUID] = []
     func enqueue(messageID: UUID) { enqueued.append(messageID) }
+    func cancel(conversationID: UUID) {}
 }
 
 private final class FakeChatService: ChatCompletionService {
