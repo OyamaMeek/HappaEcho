@@ -11,7 +11,44 @@
 		C10000020000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000020000000000000002 /* ContentView.swift */; };
 		C10000030000000000000003 /* HappaEchoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000040000000000000004 /* HappaEchoTests.swift */; };
 		C10000040000000000000004 /* HappaEchoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000050000000000000005 /* HappaEchoUITests.swift */; };
-/* End PBXBuildFile section */
+		C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000100000000000000010 /* ModelPersistenceTests.swift */; };
+		C10000050000000000000005 /* DomainEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000090000000000000009 /* DomainEnums.swift */; };
+		C10000060000000000000006 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000A0000000000000000A /* Conversation.swift */; };
+		C10000070000000000000007 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000B0000000000000000B /* Message.swift */; };
+		C10000080000000000000008 /* MessageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000C0000000000000000C /* MessageAttachment.swift */; };
+		C10000090000000000000009 /* NotionPageBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000D0000000000000000D /* NotionPageBinding.swift */; };
+		C100000A0000000000000000A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E0000000000000000E /* AppSettings.swift */; };
+		C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F0000000000000000F /* HappaEchoSchema.swift */; };
+		C100000D000000000000000D /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000110000000000000011 /* KeychainService.swift */; };
+		C100000E000000000000000E /* SettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000120000000000000012 /* SettingsRepository.swift */; };
+		C100000F0000000000000000F /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000130000000000000013 /* KeychainServiceTests.swift */; };
+		C10000100000000000000010 /* SettingsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000140000000000000014 /* SettingsRepositoryTests.swift */; };
+		C10000110000000000000011 /* ServerSentEventParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000150000000000000015 /* ServerSentEventParser.swift */; };
+		C10000120000000000000012 /* HTTPError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000160000000000000016 /* HTTPError.swift */; };
+		C10000130000000000000013 /* ChatCompletionTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000170000000000000017 /* ChatCompletionTypes.swift */; };
+		C10000140000000000000014 /* OpenAICompatibleClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000180000000000000018 /* OpenAICompatibleClient.swift */; };
+		C10000150000000000000015 /* ServerSentEventParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000190000000000000019 /* ServerSentEventParserTests.swift */; };
+		C10000160000000000000016 /* OpenAICompatibleClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */; };
+			C10000170000000000000017 /* StreamingHTTPTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001B0000000000000001B /* StreamingHTTPTransport.swift */; };
+C10000180000000000000018 /* AttachmentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001C0000000000000001C /* AttachmentStore.swift */; };
+		C10000190000000000000019 /* AttachmentImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001D0000000000000001D /* AttachmentImporter.swift */; };
+		C100001A0000000000000001A /* MultimodalRequestBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001E0000000000000001E /* MultimodalRequestBody.swift */; };
+		C100001B0000000000000001B /* AttachmentStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001F0000000000000001F /* AttachmentStoreTests.swift */; };
+		C100001C0000000000000001C /* MultimodalRequestBodyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000200000000000000020 /* MultimodalRequestBodyTests.swift */; };
+	C100001D0000000000000001D /* ChatSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000210000000000000021 /* ChatSessionController.swift */; };
+			C100001E0000000000000001E /* ChatSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000220000000000000022 /* ChatSessionState.swift */; };
+			C100001F0000000000000001F /* ChatSessionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000230000000000000023 /* ChatSessionControllerTests.swift */; };
+			C10000200000000000000020 /* TitleGenerationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000240000000000000024 /* TitleGenerationCoordinator.swift */; };
+			C10000210000000000000021 /* TitleGenerationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000250000000000000025 /* TitleGenerationCoordinatorTests.swift */; };
+		C10000220000000000000022 /* NotionTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000260000000000000000026 /* NotionTypes.swift */; };
+		C10000230000000000000023 /* NotionBlockFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000270000000000000000027 /* NotionBlockFormatter.swift */; };
+		C10000240000000000000024 /* NotionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000280000000000000000028 /* NotionClient.swift */; };
+		C10000250000000000000025 /* NotionBlockFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000290000000000000000029 /* NotionBlockFormatterTests.swift */; };
+		C10000260000000000000026 /* NotionClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100002A0000000000000002A /* NotionClientTests.swift */; };
+			C10000270000000000000027 /* NotionSyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100002B0000000000000002B /* NotionSyncCoordinatorTests.swift */; };
+			C10000280000000000000028 /* NotionSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100002C0000000000000002C /* NotionSyncCoordinator.swift */; };
+			C10000290000000000000029 /* NotionSyncScheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100002D0000000000000002D /* NotionSyncScheduling.swift */; };
+		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		A100000A000000000000000A /* PBXContainerItemProxy */ = {
@@ -34,12 +71,49 @@
 		B10000010000000000000001 /* HappaEchoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoApp.swift; sourceTree = "<group>"; };
 		B10000020000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B10000030000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000260000000000000000026 /* NotionTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionTypes.swift; sourceTree = "<group>"; };
+		B10000270000000000000000027 /* NotionBlockFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionBlockFormatter.swift; sourceTree = "<group>"; };
+		B10000280000000000000000028 /* NotionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionClient.swift; sourceTree = "<group>"; };
+		B10000290000000000000000029 /* NotionBlockFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionBlockFormatterTests.swift; sourceTree = "<group>"; };
+		B100002A0000000000000002A /* NotionClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionClientTests.swift; sourceTree = "<group>"; };
+			B100002B0000000000000002B /* NotionSyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionSyncCoordinatorTests.swift; sourceTree = "<group>"; };
+			B100002C0000000000000002C /* NotionSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionSyncCoordinator.swift; sourceTree = "<group>"; };
+			B100002D0000000000000002D /* NotionSyncScheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionSyncScheduling.swift; sourceTree = "<group>"; };
 		B10000040000000000000004 /* HappaEchoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoTests.swift; sourceTree = "<group>"; };
 		B10000050000000000000005 /* HappaEchoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoUITests.swift; sourceTree = "<group>"; };
 		B10000060000000000000006 /* HappaEcho.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappaEcho.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000070000000000000007 /* HappaEchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappaEchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000080000000000000008 /* HappaEchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappaEchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
+		B10000100000000000000010 /* ModelPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPersistenceTests.swift; sourceTree = "<group>"; };
+		B10000090000000000000009 /* DomainEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainEnums.swift; sourceTree = "<group>"; };
+		B100000A0000000000000000A /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
+		B100000B0000000000000000B /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		B100000C0000000000000000C /* MessageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageAttachment.swift; sourceTree = "<group>"; };
+		B100000D0000000000000000D /* NotionPageBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionPageBinding.swift; sourceTree = "<group>"; };
+		B100000E0000000000000000E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		B100000F0000000000000000F /* HappaEchoSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoSchema.swift; sourceTree = "<group>"; };
+		B10000110000000000000011 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		B10000120000000000000012 /* SettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRepository.swift; sourceTree = "<group>"; };
+		B10000130000000000000013 /* KeychainServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainServiceTests.swift; sourceTree = "<group>"; };
+		B10000140000000000000014 /* SettingsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRepositoryTests.swift; sourceTree = "<group>"; };
+		B10000150000000000000015 /* ServerSentEventParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSentEventParser.swift; sourceTree = "<group>"; };
+		B10000160000000000000016 /* HTTPError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPError.swift; sourceTree = "<group>"; };
+		B10000170000000000000017 /* ChatCompletionTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionTypes.swift; sourceTree = "<group>"; };
+		B10000180000000000000018 /* OpenAICompatibleClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleClient.swift; sourceTree = "<group>"; };
+		B10000190000000000000019 /* ServerSentEventParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSentEventParserTests.swift; sourceTree = "<group>"; };
+		B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleClientTests.swift; sourceTree = "<group>"; };
+			B100001B0000000000000001B /* StreamingHTTPTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingHTTPTransport.swift; sourceTree = "<group>"; };
+B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentStore.swift; sourceTree = "<group>"; };
+		B100001D0000000000000001D /* AttachmentImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentImporter.swift; sourceTree = "<group>"; };
+		B100001E0000000000000001E /* MultimodalRequestBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultimodalRequestBody.swift; sourceTree = "<group>"; };
+		B100001F0000000000000001F /* AttachmentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentStoreTests.swift; sourceTree = "<group>"; };
+		B10000200000000000000020 /* MultimodalRequestBodyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultimodalRequestBodyTests.swift; sourceTree = "<group>"; };
+	B10000210000000000000021 /* ChatSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionController.swift; sourceTree = "<group>"; };
+			B10000220000000000000022 /* ChatSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionState.swift; sourceTree = "<group>"; };
+			B10000230000000000000023 /* ChatSessionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionControllerTests.swift; sourceTree = "<group>"; };
+			B10000240000000000000024 /* TitleGenerationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleGenerationCoordinator.swift; sourceTree = "<group>"; };
+			B10000250000000000000025 /* TitleGenerationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleGenerationCoordinatorTests.swift; sourceTree = "<group>"; };
+		/* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D10000020000000000000002 /* Frameworks */ = {
@@ -90,9 +164,100 @@
 			isa = PBXGroup;
 			children = (
 				A10000050000000000000005 /* App */,
+				A100000C000000000000000C /* Models */,
+				A100000E000000000000000E /* Infrastructure */,
+				A10000100000000000000010 /* Features */,
 				B10000030000000000000003 /* Info.plist */,
 			);
 			path = HappaEcho;
+			sourceTree = "<group>";
+		};
+		A100000C000000000000000C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10000090000000000000009 /* DomainEnums.swift */,
+				B100000A0000000000000000A /* Conversation.swift */,
+				B100000B0000000000000000B /* Message.swift */,
+				B100000C0000000000000000C /* MessageAttachment.swift */,
+				B100000D0000000000000000D /* NotionPageBinding.swift */,
+				B100000E0000000000000000E /* AppSettings.swift */,
+				B100000F0000000000000000F /* HappaEchoSchema.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A100000E000000000000000E /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				A100000F000000000000000F /* Security */,
+				A10000130000000000000013 /* HTTP */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		A10000130000000000000013 /* HTTP */ = {
+			isa = PBXGroup;
+			children = (
+				B10000150000000000000015 /* ServerSentEventParser.swift */,
+				B10000160000000000000016 /* HTTPError.swift */,
+					B100001B0000000000000001B /* StreamingHTTPTransport.swift */,
+			);
+			path = HTTP;
+			sourceTree = "<group>";
+		};
+		A100000F000000000000000F /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				B10000110000000000000011 /* KeychainService.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		A10000100000000000000010 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A10000110000000000000011 /* Settings */,
+				A10000140000000000000014 /* Chat */,
+					A10000160000000000000016 /* Attachments */,
+					A10000180000000000000018 /* Titles */,
+				A100001A0000000000000001A /* Notion */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A100001A0000000000000001A /* Notion */ = {
+			isa = PBXGroup;
+			children = (B10000260000000000000000026 /* NotionTypes.swift */, B10000270000000000000000027 /* NotionBlockFormatter.swift */, B10000280000000000000000028 /* NotionClient.swift */, B100002C0000000000000002C /* NotionSyncCoordinator.swift */, B100002D0000000000000002D /* NotionSyncScheduling.swift */,);
+			path = Notion;
+			sourceTree = "<group>";
+		};
+		A10000180000000000000018 /* Titles */ = {
+			isa = PBXGroup;
+			children = (
+				B10000240000000000000024 /* TitleGenerationCoordinator.swift */,
+			);
+			path = Titles;
+			sourceTree = "<group>";
+		};
+
+		A10000140000000000000014 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				B10000170000000000000017 /* ChatCompletionTypes.swift */,
+				B10000180000000000000018 /* OpenAICompatibleClient.swift */,
+					B100001E0000000000000001E /* MultimodalRequestBody.swift */,
+					B10000210000000000000021 /* ChatSessionController.swift */,
+					B10000220000000000000022 /* ChatSessionState.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		A10000110000000000000011 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B10000120000000000000012 /* SettingsRepository.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		A10000050000000000000005 /* App */ = {
@@ -107,9 +272,56 @@
 		A10000060000000000000006 /* HappaEchoTests */ = {
 			isa = PBXGroup;
 			children = (
-				B10000040000000000000004 /* HappaEchoTests.swift */,
+				A100000D000000000000000D /* Models */,
+				A10000120000000000000012 /* Settings */,
+				A10000150000000000000015 /* Chat */,
+					A10000170000000000000017 /* Attachments */,
+					A10000190000000000000019 /* Titles */,
+				A100001B0000000000000001B /* Notion */,				B10000040000000000000004 /* HappaEchoTests.swift */,
 			);
 			path = HappaEchoTests;
+			sourceTree = "<group>";
+		};
+		A100001B0000000000000001B /* Notion */ = {
+			isa = PBXGroup;
+			children = (B10000290000000000000000029 /* NotionBlockFormatterTests.swift */, B100002A0000000000000002A /* NotionClientTests.swift */, B100002B0000000000000002B /* NotionSyncCoordinatorTests.swift */,);
+			path = Notion;
+			sourceTree = "<group>";
+		};
+		A10000190000000000000019 /* Titles */ = {
+			isa = PBXGroup;
+			children = (
+				B10000250000000000000025 /* TitleGenerationCoordinatorTests.swift */,
+			);
+			path = Titles;
+			sourceTree = "<group>";
+		};
+		A10000150000000000000015 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				B10000190000000000000019 /* ServerSentEventParserTests.swift */,
+				B100001A0000000000000001A /* OpenAICompatibleClientTests.swift */,
+					B10000200000000000000020 /* MultimodalRequestBodyTests.swift */,
+				B10000230000000000000023 /* ChatSessionControllerTests.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		A100000D000000000000000D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10000100000000000000010 /* ModelPersistenceTests.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A10000120000000000000012 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B10000130000000000000013 /* KeychainServiceTests.swift */,
+				B10000140000000000000014 /* SettingsRepositoryTests.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		A10000070000000000000007 /* HappaEchoUITests */ = {
@@ -120,7 +332,9 @@
 			path = HappaEchoUITests;
 			sourceTree = "<group>";
 		};
-/* End PBXGroup section */
+A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100001C0000000000000001C /* AttachmentStore.swift */, B100001D0000000000000001D /* AttachmentImporter.swift */, ); path = Attachments; sourceTree = "<group>"; };
+		A10000170000000000000017 /* Attachments */ = { isa = PBXGroup; children = ( B100001F0000000000000001F /* AttachmentStoreTests.swift */, ); path = Attachments; sourceTree = "<group>"; };
+	/* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		E10000010000000000000001 /* HappaEcho */ = {
@@ -251,6 +465,31 @@
 			files = (
 				C10000010000000000000001 /* HappaEchoApp.swift in Sources */,
 				C10000020000000000000002 /* ContentView.swift in Sources */,
+				C10000050000000000000005 /* DomainEnums.swift in Sources */,
+				C10000060000000000000006 /* Conversation.swift in Sources */,
+				C10000070000000000000007 /* Message.swift in Sources */,
+				C10000080000000000000008 /* MessageAttachment.swift in Sources */,
+				C10000090000000000000009 /* NotionPageBinding.swift in Sources */,
+				C100000A0000000000000000A /* AppSettings.swift in Sources */,
+				C100000B0000000000000000B /* HappaEchoSchema.swift in Sources */,
+				C100000D000000000000000D /* KeychainService.swift in Sources */,
+				C100000E000000000000000E /* SettingsRepository.swift in Sources */,
+				C10000110000000000000011 /* ServerSentEventParser.swift in Sources */,
+				C10000120000000000000012 /* HTTPError.swift in Sources */,
+				C10000130000000000000013 /* ChatCompletionTypes.swift in Sources */,
+				C10000140000000000000014 /* OpenAICompatibleClient.swift in Sources */,
+					C10000170000000000000017 /* StreamingHTTPTransport.swift in Sources */,
+					C10000180000000000000018 /* AttachmentStore.swift in Sources */,
+					C10000190000000000000019 /* AttachmentImporter.swift in Sources */,
+					C100001A0000000000000001A /* MultimodalRequestBody.swift in Sources */,
+					C100001D0000000000000001D /* ChatSessionController.swift in Sources */,
+					C100001E0000000000000001E /* ChatSessionState.swift in Sources */,
+					C10000200000000000000020 /* TitleGenerationCoordinator.swift in Sources */,
+					C10000220000000000000022 /* NotionTypes.swift in Sources */,
+					C10000230000000000000023 /* NotionBlockFormatter.swift in Sources */,
+					C10000240000000000000024 /* NotionClient.swift in Sources */,
+					C10000280000000000000028 /* NotionSyncCoordinator.swift in Sources */,
+					C10000290000000000000029 /* NotionSyncScheduling.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,6 +498,18 @@
 			buildActionMask = 2147483647;
 			files = (
 				C10000030000000000000003 /* HappaEchoTests.swift in Sources */,
+				C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */,
+				C100000F0000000000000000F /* KeychainServiceTests.swift in Sources */,
+				C10000100000000000000010 /* SettingsRepositoryTests.swift in Sources */,
+				C10000150000000000000015 /* ServerSentEventParserTests.swift in Sources */,
+				C10000160000000000000016 /* OpenAICompatibleClientTests.swift in Sources */,
+					C100001B0000000000000001B /* AttachmentStoreTests.swift in Sources */,
+					C100001C0000000000000001C /* MultimodalRequestBodyTests.swift in Sources */,
+					C100001F0000000000000001F /* ChatSessionControllerTests.swift in Sources */,
+					C10000210000000000000021 /* TitleGenerationCoordinatorTests.swift in Sources */,
+					C10000250000000000000025 /* NotionBlockFormatterTests.swift in Sources */,
+					C10000260000000000000026 /* NotionClientTests.swift in Sources */,
+					C10000270000000000000027 /* NotionSyncCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
