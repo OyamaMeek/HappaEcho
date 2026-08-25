@@ -25,7 +25,6 @@
 		C10000010000000000000001 /* HappaEchoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000010000000000000001 /* HappaEchoApp.swift */; };
 		C10000020000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000020000000000000002 /* ContentView.swift */; };
 		C10000030000000000000003 /* HappaEchoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000040000000000000004 /* HappaEchoTests.swift */; };
-		C10000040000000000000004 /* HappaEchoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000050000000000000005 /* HappaEchoUITests.swift */; };
 		C100000C0000000000000000C /* ModelPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000100000000000000010 /* ModelPersistenceTests.swift */; };
 		C10000050000000000000005 /* DomainEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000090000000000000009 /* DomainEnums.swift */; };
 		C10000060000000000000006 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000A0000000000000000A /* Conversation.swift */; };
@@ -73,13 +72,6 @@ C10000180000000000000018 /* AttachmentStore.swift in Sources */ = {isa = PBXBuil
 			remoteGlobalIDString = E10000010000000000000001;
 			remoteInfo = HappaEcho;
 		};
-		A100000B000000000000000B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A10000010000000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E10000010000000000000001;
-			remoteInfo = HappaEcho;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -110,10 +102,8 @@ C10000180000000000000018 /* AttachmentStore.swift in Sources */ = {isa = PBXBuil
 			B100002C0000000000000002C /* NotionSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionSyncCoordinator.swift; sourceTree = "<group>"; };
 			B100002D0000000000000002D /* NotionSyncScheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionSyncScheduling.swift; sourceTree = "<group>"; };
 		B10000040000000000000004 /* HappaEchoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoTests.swift; sourceTree = "<group>"; };
-		B10000050000000000000005 /* HappaEchoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoUITests.swift; sourceTree = "<group>"; };
 		B10000060000000000000006 /* HappaEcho.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappaEcho.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000070000000000000007 /* HappaEchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappaEchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B10000080000000000000008 /* HappaEchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappaEchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000100000000000000010 /* ModelPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPersistenceTests.swift; sourceTree = "<group>"; };
 		B10000090000000000000009 /* DomainEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainEnums.swift; sourceTree = "<group>"; };
 		B100000A0000000000000000A /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
@@ -160,13 +150,6 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D10000080000000000000008 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -175,7 +158,6 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 			children = (
 				A10000040000000000000004 /* HappaEcho */,
 				A10000060000000000000006 /* HappaEchoTests */,
-				A10000070000000000000007 /* HappaEchoUITests */,
 				A10000030000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -185,7 +167,6 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 			children = (
 				B10000060000000000000006 /* HappaEcho.app */,
 				B10000070000000000000007 /* HappaEchoTests.xctest */,
-				B10000080000000000000008 /* HappaEchoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -354,14 +335,6 @@ B100001C0000000000000001C /* AttachmentStore.swift */ = {isa = PBXFileReference;
 			path = Settings;
 			sourceTree = "<group>";
 		};
-		A10000070000000000000007 /* HappaEchoUITests */ = {
-			isa = PBXGroup;
-			children = (
-				B10000050000000000000005 /* HappaEchoUITests.swift */,
-			);
-			path = HappaEchoUITests;
-			sourceTree = "<group>";
-		};
 A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100001C0000000000000001C /* AttachmentStore.swift */, B100001D0000000000000001D /* AttachmentImporter.swift */, ); path = Attachments; sourceTree = "<group>"; };
 		A10000170000000000000017 /* Attachments */ = { isa = PBXGroup; children = ( B100001F0000000000000001F /* AttachmentStoreTests.swift */, ); path = Attachments; sourceTree = "<group>"; };
 	/* End PBXGroup section */
@@ -402,24 +375,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			productReference = B10000070000000000000007 /* HappaEchoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		E10000030000000000000003 /* HappaEchoUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = F10000040000000000000004 /* Build configuration list for PBXNativeTarget "HappaEchoUITests" */;
-			buildPhases = (
-				D10000070000000000000007 /* Sources */,
-				D10000080000000000000008 /* Frameworks */,
-				D10000090000000000000009 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A10000090000000000000009 /* PBXTargetDependency */,
-			);
-			name = HappaEchoUITests;
-			productName = HappaEchoUITests;
-			productReference = B10000080000000000000008 /* HappaEchoUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -434,10 +389,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 						CreatedOnToolsVersion = 16.4;
 					};
 					E10000020000000000000002 = {
-						CreatedOnToolsVersion = 16.4;
-						TestTargetID = E10000010000000000000001;
-					};
-					E10000030000000000000003 = {
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = E10000010000000000000001;
 					};
@@ -459,7 +410,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			targets = (
 				E10000010000000000000001 /* HappaEcho */,
 				E10000020000000000000002 /* HappaEchoTests */,
-				E10000030000000000000003 /* HappaEchoUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -473,13 +423,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D10000060000000000000006 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D10000090000000000000009 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -558,14 +501,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D10000070000000000000007 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				C10000040000000000000004 /* HappaEchoUITests.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -573,11 +508,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			isa = PBXTargetDependency;
 			target = E10000010000000000000001 /* HappaEcho */;
 			targetProxy = A100000A000000000000000A /* PBXContainerItemProxy */;
-		};
-		A10000090000000000000009 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E10000010000000000000001 /* HappaEcho */;
-			targetProxy = A100000B000000000000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -782,48 +712,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			};
 			name = Release;
 		};
-		F100000B000000000000000B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.happaecho.app.uitests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = HappaEcho;
-			};
-			name = Debug;
-		};
-		F100000C000000000000000C /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.happaecho.app.uitests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = HappaEcho;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -850,15 +738,6 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 			buildConfigurations = (
 				F10000090000000000000009 /* Debug */,
 				F100000A000000000000000A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		F10000040000000000000004 /* Build configuration list for PBXNativeTarget "HappaEchoUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				F100000B000000000000000B /* Debug */,
-				F100000C000000000000000C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

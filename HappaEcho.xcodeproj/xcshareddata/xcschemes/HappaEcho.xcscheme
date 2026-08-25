@@ -39,16 +39,6 @@
                ReferencedContainer = "container:HappaEcho.xcodeproj">
             </BuildableReference>
          </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E10000030000000000000003"
-               BuildableName = "HappaEchoUITests.xctest"
-               BlueprintName = "HappaEchoUITests"
-               ReferencedContainer = "container:HappaEcho.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
