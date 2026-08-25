@@ -1,0 +1,2 @@
+import SwiftUI
+struct SyncStatusView:View { let state:SyncState; var body:some View { Label(label,systemImage:icon).font(.caption).foregroundStyle(color).accessibilityLabel("Notion 同步：\(label)") }; private var label:String { switch state { case .pending:"等待备份"; case .syncing:"正在备份"; case .synced:"已备份"; case .failed:"备份失败" } }; private var icon:String { state == .synced ? "checkmark.icloud" : "icloud" }; private var color:Color { state == .failed ? .red:.secondary } }

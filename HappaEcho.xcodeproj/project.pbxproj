@@ -7,6 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C20000000000000000000001 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* SettingsViewModel.swift */; };
+		C20000000000000000000002 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* SettingsView.swift */; };
+		C20000000000000000000003 /* HappaEchoTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* HappaEchoTheme.swift */; };
+		C20000000000000000000004 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* GlassSurface.swift */; };
+		C20000000000000000000005 /* MessageDocumentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* MessageDocumentParser.swift */; };
+		C20000000000000000000006 /* MessageContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* MessageContentView.swift */; };
+		C20000000000000000000007 /* CodeBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* CodeBlockView.swift */; };
+		C20000000000000000000008 /* LaTeXRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* LaTeXRenderer.swift */; };
+		C20000000000000000000009 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* SidebarView.swift */; };
+		C2000000000000000000000A /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000A /* ChatView.swift */; };
+		C2000000000000000000000B /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000B /* MessageRow.swift */; };
+		C2000000000000000000000C /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000C /* ComposerView.swift */; };
+		C2000000000000000000000D /* SyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000D /* SyncStatusView.swift */; };
+		C2000000000000000000000E /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000E /* AppEnvironment.swift */; };
+		C2000000000000000000000F /* ConversationDeletionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000F /* ConversationDeletionCoordinator.swift */; };
 		C10000010000000000000001 /* HappaEchoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000010000000000000001 /* HappaEchoApp.swift */; };
 		C10000020000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000020000000000000002 /* ContentView.swift */; };
 		C10000030000000000000003 /* HappaEchoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000040000000000000004 /* HappaEchoTests.swift */; };
@@ -68,6 +83,21 @@ C10000180000000000000018 /* AttachmentStore.swift in Sources */ = {isa = PBXBuil
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B20000000000000000000001 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Settings/SettingsViewModel.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000002 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Settings/SettingsView.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000003 /* HappaEchoTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/DesignSystem/HappaEchoTheme.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000004 /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/DesignSystem/GlassSurface.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000005 /* MessageDocumentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Rendering/MessageDocumentParser.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000006 /* MessageContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Rendering/MessageContentView.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000007 /* CodeBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Rendering/CodeBlockView.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000008 /* LaTeXRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Rendering/LaTeXRenderer.swift; sourceTree = SOURCE_ROOT; };
+		B20000000000000000000009 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Chat/SidebarView.swift; sourceTree = SOURCE_ROOT; };
+		B2000000000000000000000A /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Chat/ChatView.swift; sourceTree = SOURCE_ROOT; };
+		B2000000000000000000000B /* MessageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Chat/MessageRow.swift; sourceTree = SOURCE_ROOT; };
+		B2000000000000000000000C /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Chat/ComposerView.swift; sourceTree = SOURCE_ROOT; };
+		B2000000000000000000000D /* SyncStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Notion/SyncStatusView.swift; sourceTree = SOURCE_ROOT; };
+		B2000000000000000000000E /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/App/AppEnvironment.swift; sourceTree = SOURCE_ROOT; };
+		B2000000000000000000000F /* ConversationDeletionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/App/ConversationDeletionCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		B10000010000000000000001 /* HappaEchoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoApp.swift; sourceTree = "<group>"; };
 		B10000020000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B10000030000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -490,6 +520,21 @@ A10000160000000000000016 /* Attachments */ = { isa = PBXGroup; children = ( B100
 					C10000240000000000000024 /* NotionClient.swift in Sources */,
 					C10000280000000000000028 /* NotionSyncCoordinator.swift in Sources */,
 					C10000290000000000000029 /* NotionSyncScheduling.swift in Sources */,
+				C20000000000000000000001 /* SettingsViewModel.swift in Sources */,
+				C20000000000000000000002 /* SettingsView.swift in Sources */,
+				C20000000000000000000003 /* HappaEchoTheme.swift in Sources */,
+				C20000000000000000000004 /* GlassSurface.swift in Sources */,
+				C20000000000000000000005 /* MessageDocumentParser.swift in Sources */,
+				C20000000000000000000006 /* MessageContentView.swift in Sources */,
+				C20000000000000000000007 /* CodeBlockView.swift in Sources */,
+				C20000000000000000000008 /* LaTeXRenderer.swift in Sources */,
+				C20000000000000000000009 /* SidebarView.swift in Sources */,
+				C2000000000000000000000A /* ChatView.swift in Sources */,
+				C2000000000000000000000B /* MessageRow.swift in Sources */,
+				C2000000000000000000000C /* ComposerView.swift in Sources */,
+				C2000000000000000000000D /* SyncStatusView.swift in Sources */,
+				C2000000000000000000000E /* AppEnvironment.swift in Sources */,
+				C2000000000000000000000F /* ConversationDeletionCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

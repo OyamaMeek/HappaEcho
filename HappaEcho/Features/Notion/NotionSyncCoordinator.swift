@@ -297,7 +297,7 @@ actor NotionSyncCoordinator {
         do {
             let config = try await store.configuration()
             guard config.enabled, let databaseID = config.databaseID, !databaseID.isEmpty else { return }
-            guard var message = try await store.message(id: messageID),
+            guard let message = try await store.message(id: messageID),
                   let conversation = try await store.conversation(id: message.conversationID) else { return }
             guard message.syncState != .synced else { return }
             try Task.checkCancellation()

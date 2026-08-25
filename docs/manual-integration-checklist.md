@@ -1,12 +1,7 @@
-# Manual integration checklist
+# HappaEcho 手动集成验收
 
-## Cloud-only Photos transfer progress
-
-**Device prerequisite:** Sign into iCloud Photos on a physical device and select a known image whose full-size original is cloud-only (download it only through the picker during this check).
-
-1. Open the image picker and select the cloud-only image. Confirm the attachment UI reports progress values between 0 and 1 while Photos transfers the `.current` representation.
-2. Cancel while an intermediate value is visible. Confirm transfer stops, no terminal completion is shown, and no attachment draft remains.
-3. Repeat without cancelling. Confirm completion reaches 1 only after the imported draft exists.
-4. Compare the persisted draft's bytes with the file supplied by the picker callback using a SHA-256 digest. They must match exactly.
-
-This acceptance check is documented now because it covers the Task 5 importer repair. The user-facing attachment picker/transfer-progress UI is scheduled for Task 13; execute the case when that target is available.
+- 配置 OpenAI 兼容 HTTPS endpoint、模型和 Keychain API Key，验证文字流、停止、部分失败与继续生成。
+- 导入文件、照片库（含 iCloud）和相机图片，确认原始字节、进度、10 张限制、图片模型阻止及草稿清理。
+- 检查自动标题、手动标题保护、Notion 页面创建、批次恢复、图片上传、数据库切换、离线/429 重试和重新启动恢复。
+- 在 iPhone 与 iPad 验证搜索、新建、长回答、代码、表格、公式、同步状态与失败重试。
+- 使用动态字体、VoiceOver、降低透明度、降低动态效果，检查所有核心操作和相机不可用状态。

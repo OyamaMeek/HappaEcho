@@ -1,0 +1,2 @@
+import SwiftUI
+struct MessageRow:View { let message:Message; var body:some View { HStack { if message.role == .user { Spacer() }; VStack(alignment:.leading,spacing:6) { Text(message.role == .user ? "你" : "HappaEcho").font(.caption).foregroundStyle(.secondary); MessageContentView(content:message.content) }.padding(12).background(message.role == .user ? Color.happaIndigo.opacity(0.55) : Color.happaSurface.opacity(0.7),in:RoundedRectangle(cornerRadius:14)); if message.role != .user { Spacer() } }.id(message.id).accessibilityElement(children:.contain) } }

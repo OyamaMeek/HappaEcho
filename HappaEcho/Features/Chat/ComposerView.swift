@@ -1,0 +1,2 @@
+import SwiftUI
+struct ComposerView:View { @Binding var text:String; let send:()->Void; var body:some View { HStack(alignment:.bottom) { TextField("输入消息",text:$text,axis:.vertical).lineLimit(1...6).accessibilityIdentifier("composer-input"); Button(action:send) { Image(systemName:"arrow.up.circle.fill").font(.title2) }.disabled(text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).accessibilityLabel("发送") }.padding().background(.bar) } }

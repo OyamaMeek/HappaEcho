@@ -55,11 +55,11 @@ final class TitleGenerationCoordinator {
             do {
                 let output = try await service.generateTitle(request: request)
                 guard !Task.isCancelled else { return }
-                await self.applyGenerated(output, to: conversation, token: token)
+                self.applyGenerated(output, to: conversation, token: token)
             } catch {
                 // The fallback was applied before this request started.
             }
-            await self.clearTask(for: conversation.id, token: token)
+            self.clearTask(for: conversation.id, token: token)
         }
         await tasks[conversation.id]?.value
     }

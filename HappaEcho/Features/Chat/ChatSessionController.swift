@@ -139,7 +139,7 @@ final class ChatSessionController {
     private func finish(text: String, state: GenerationState, conversation: Conversation, id: UUID) {
         if !text.isEmpty {
             let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: state)
-            persist(message, in: conversation)
+            _ = persist(message, in: conversation)
         }
         conclude(conversation: conversation, id: id, state: .idle)
     }
@@ -147,7 +147,7 @@ final class ChatSessionController {
     private func finishCancellation(text: String, conversation: Conversation, id: UUID) {
         if !text.isEmpty {
             let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: .stopped)
-            persist(message, in: conversation)
+            _ = persist(message, in: conversation)
             conclude(conversation: conversation, id: id, state: .stopped(text: text))
         } else {
             conclude(conversation: conversation, id: id, state: .idle)
@@ -157,7 +157,7 @@ final class ChatSessionController {
     private func finishFailure(error: Error, text: String, draft: ChatDraft?, conversation: Conversation, id: UUID) {
         if !text.isEmpty {
             let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: .failedPartial)
-            persist(message, in: conversation)
+            _ = persist(message, in: conversation)
         } else if let draft, isContextLimit(error) {
             drafts[id] = draft
         }

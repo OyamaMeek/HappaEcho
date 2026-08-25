@@ -1,0 +1,2 @@
+import SwiftUI
+struct CodeBlockView: View { let language:String; let code:String; var body: some View { VStack(alignment:.leading) { HStack { Text(language).font(.caption); Spacer(); Button { UIPasteboard.general.string=code } label:{ Image(systemName:"doc.on.doc") }.accessibilityLabel("复制代码") }; ScrollView(.horizontal) { Text(code).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) } }.padding(10).background(.black.opacity(0.25),in:RoundedRectangle(cornerRadius:10)) } }
