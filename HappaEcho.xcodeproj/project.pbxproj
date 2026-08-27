@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C30000010000000000000001 /* ModelCatalogClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000010000000000000001 /* ModelCatalogClient.swift */; };
-		C30000020000000000000002 /* ModelCatalogClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000020000000000000002 /* ModelCatalogClientTests.swift */; };
 		C10000010000000000000001 /* HappaEchoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000010000000000000001 /* HappaEchoApp.swift */; };
 		C10000020000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000020000000000000002 /* ContentView.swift */; };
 		C10000030000000000000003 /* HappaEchoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000040000000000000004 /* HappaEchoTests.swift */; };
@@ -64,6 +62,8 @@
 		C2000000000000000000000D /* HappaEcho/Features/Notion/SyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000D /* HappaEcho/Features/Notion/SyncStatusView.swift */; };
 		C2000000000000000000000E /* HappaEcho/App/AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000E /* HappaEcho/App/AppEnvironment.swift */; };
 		C2000000000000000000000F /* HappaEcho/App/ConversationDeletionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000F /* HappaEcho/App/ConversationDeletionCoordinator.swift */; };
+		C30000010000000000000001 /* ModelCatalogClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000010000000000000001 /* ModelCatalogClient.swift */; };
+		C30000020000000000000002 /* ModelCatalogClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000020000000000000002 /* ModelCatalogClientTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,8 +77,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B30000010000000000000001 /* ModelCatalogClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogClient.swift; sourceTree = "<group>"; };
-		B30000020000000000000002 /* ModelCatalogClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogClientTests.swift; sourceTree = "<group>"; };
 		B10000010000000000000001 /* HappaEchoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEchoApp.swift; sourceTree = "<group>"; };
 		B10000020000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B10000030000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -137,6 +135,8 @@
 		B2000000000000000000000D /* HappaEcho/Features/Notion/SyncStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/Features/Notion/SyncStatusView.swift; sourceTree = SOURCE_ROOT; };
 		B2000000000000000000000E /* HappaEcho/App/AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/App/AppEnvironment.swift; sourceTree = SOURCE_ROOT; };
 		B2000000000000000000000F /* HappaEcho/App/ConversationDeletionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappaEcho/App/ConversationDeletionCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		B30000010000000000000001 /* ModelCatalogClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogClient.swift; sourceTree = "<group>"; };
+		B30000020000000000000002 /* ModelCatalogClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogClientTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -469,6 +469,23 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		D10000030000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D10000060000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXShellScriptBuildPhase section */
 		D30000010000000000000001 /* Stamp Build Time */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -487,23 +504,6 @@
 			shellScript = "set -e\nprintf '#define HAPPAECHO_BUILD_TIME \"%s\"\\n' \"$(date '+%Y-%m-%d %H:%M:%S %z')\" > \"${DERIVED_FILE_DIR}/HappaEchoBuildTime.h\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
-
-/* Begin PBXResourcesBuildPhase section */
-		D10000030000000000000003 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D10000060000000000000006 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D10000010000000000000001 /* Sources */ = {
@@ -712,8 +712,8 @@
 				DEVELOPMENT_TEAM = 456LQ85CZH;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HappaEcho/Info.plist;
-				INFOPLIST_PREPROCESS = YES;
 				INFOPLIST_PREFIX_HEADER = "$(DERIVED_FILE_DIR)/HappaEchoBuildTime.h";
+				INFOPLIST_PREPROCESS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -735,8 +735,8 @@
 				DEVELOPMENT_TEAM = 456LQ85CZH;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HappaEcho/Info.plist;
-				INFOPLIST_PREPROCESS = YES;
 				INFOPLIST_PREFIX_HEADER = "$(DERIVED_FILE_DIR)/HappaEchoBuildTime.h";
+				INFOPLIST_PREPROCESS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
