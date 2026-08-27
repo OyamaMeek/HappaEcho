@@ -10,6 +10,7 @@ final class ChatSessionController {
     private let attachmentStore: AttachmentStore
     private let syncScheduler: NotionSyncScheduling
     private let settings: ChatSessionSettings
+    private let titleGenerator: (any ConversationTitleGenerating)?
     private var tasks: [UUID: Task<Void, Never>] = [:]
     private var states: [UUID: ChatSessionState] = [:]
     private var drafts: [UUID: ChatDraft] = [:]
@@ -19,13 +20,15 @@ final class ChatSessionController {
         modelContext: ModelContext,
         attachmentStore: AttachmentStore,
         syncScheduler: NotionSyncScheduling,
-        settings: ChatSessionSettings
+        settings: ChatSessionSettings,
+        titleGenerator: (any ConversationTitleGenerating)? = nil
     ) {
         self.service = service
         self.modelContext = modelContext
         self.attachmentStore = attachmentStore
         self.syncScheduler = syncScheduler
         self.settings = settings
+        self.titleGenerator = titleGenerator
     }
 
     func state(for conversationID: UUID) -> ChatSessionState {
@@ -105,6 +108,20 @@ final class ChatSessionController {
         tasks[conversationID]?.cancel()
     }
 
+    func setManualTitle(_ title: String, in conversation: Conversation) async {
+        if let titleGenerator {
+            try? await titleGenerator.setManualTitle(title, for: conversation)
+            return
+        }
+        let normalized = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return }
+        conversation.title = String(normalized.prefix(30))
+        conversation.isTitleManuallyEdited = true
+        conversation.updatedAt = .now
+        try? modelContext.save()
+        syncScheduler.enqueueMetadata(conversationID: conversation.id)
+    }
+
     private func beginGeneration(in conversation: Conversation, request: ChatRequest, draft: ChatDraft?) {
         let id = conversation.id
         conversation.isGenerating = true
@@ -142,6 +159,12 @@ final class ChatSessionController {
         if !text.isEmpty {
             let message = Message(role: .assistant, content: text, sequence: nextSequence(in: conversation), generationState: state)
             _ = persist(message, in: conversation)
+            if case .completed = state, let titleGenerator {
+                Task { [weak conversation] in
+                    guard let conversation else { return }
+                    await titleGenerator.generateIfEligible(for: conversation)
+                }
+            }
         }
         conclude(conversation: conversation, id: id, state: .idle)
     }

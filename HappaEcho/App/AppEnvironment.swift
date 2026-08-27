@@ -33,12 +33,18 @@ final class AppEnvironment {
         let endpoint = URL(string: settings.endpoint) ?? URL(string: "https://api.openai.com/v1/chat/completions")!
         let apiKey = (try? settingsRepository.loadChatAPIKey()) ?? ""
         let service = OpenAICompatibleClient(configuration: .init(endpoint: endpoint, apiKey: apiKey))
+        let titleGenerator = TitleGenerationCoordinator(
+            service: service,
+            modelContext: context,
+            syncScheduler: NotionTitleSyncScheduler(scheduler: syncScheduler)
+        )
         return ChatSessionController(
             service: service,
             modelContext: context,
             attachmentStore: attachmentStore,
             syncScheduler: syncScheduler,
-            settings: .init(modelID: settings.modelID, supportsVision: settings.supportsVision, systemPrompt: settings.systemPrompt)
+            settings: .init(modelID: settings.modelID, supportsVision: settings.supportsVision, systemPrompt: settings.systemPrompt),
+            titleGenerator: titleGenerator
         )
     }
 
@@ -47,5 +53,19 @@ final class AppEnvironment {
 
 final class NoopNotionScheduler: NotionSyncScheduling, @unchecked Sendable {
     func enqueue(messageID: UUID) {}
+    func enqueueMetadata(conversationID: UUID) {}
+    func resumePending() {}
     func cancel(conversationID: UUID) {}
+}
+
+private final class NotionTitleSyncScheduler: TitleSyncScheduling, @unchecked Sendable {
+    private let scheduler: any NotionSyncScheduling
+
+    init(scheduler: any NotionSyncScheduling) {
+        self.scheduler = scheduler
+    }
+
+    func enqueueMetadata(conversationID: UUID) {
+        scheduler.enqueueMetadata(conversationID: conversationID)
+    }
 }

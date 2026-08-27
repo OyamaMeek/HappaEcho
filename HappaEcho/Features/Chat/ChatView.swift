@@ -13,6 +13,8 @@ struct ChatView: View {
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var attachmentError: String?
     @State private var editingTitle = false
+    @State private var titleDraft = ""
+    @State private var userIsAtBottom = true
 
     init(conversation: Conversation, environment: AppEnvironment, settings: AppSettings, context: ModelContext) {
         self.conversation = conversation
@@ -23,15 +25,38 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        ForEach(conversation.sortedMessages) { MessageRow(message: $0) }
-                        generatingRow
+                GeometryReader { viewport in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 14) {
+                            ForEach(conversation.sortedMessages) {
+                                MessageRow(message: $0, attachmentStore: environment.attachmentStore)
+                            }
+                            generatingRow
+                            Color.clear
+                                .frame(height: 1)
+                                .id(ChatScrollAnchor.bottom)
+                                .background(
+                                    GeometryReader { geometry in
+                                        Color.clear.preference(
+                                            key: ChatScrollBottomOffsetKey.self,
+                                            value: geometry.frame(in: .named("chat-scroll")).maxY
+                                        )
+                                    }
+                                )
+                        }
+                        .padding()
                     }
-                    .padding()
+                    .coordinateSpace(name: "chat-scroll")
+                    .onPreferenceChange(ChatScrollBottomOffsetKey.self) { bottom in
+                        userIsAtBottom = bottom <= viewport.size.height + 32
+                    }
                 }
-                .onChange(of: conversation.messages.count) { _, _ in scrollToBottom(proxy) }
-                .onChange(of: session.state(for: conversation.id)) { _, _ in scrollToBottom(proxy) }
+                .onChange(of: conversation.messages.count) { _, _ in
+                    scrollToBottom(proxy, after: .newMessage)
+                }
+                .onChange(of: session.state(for: conversation.id)) { _, _ in
+                    scrollToBottom(proxy, after: .streamingUpdate)
+                }
             }
             Divider()
             draftAttachmentStrip
@@ -47,13 +72,18 @@ struct ChatView: View {
         .navigationTitle(conversation.title)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { editingTitle = true } label: { Image(systemName: "pencil") }
+                Button {
+                    titleDraft = conversation.title
+                    editingTitle = true
+                } label: { Image(systemName: "pencil") }
                     .accessibilityLabel("编辑标题")
             }
         }
         .alert("编辑标题", isPresented: $editingTitle) {
-            TextField("标题", text: $conversation.title)
-            Button("保存") { conversation.isTitleManuallyEdited = true; conversation.updatedAt = .now }
+            TextField("标题", text: $titleDraft)
+            Button("保存") {
+                Task { await session.setManualTitle(titleDraft, in: conversation) }
+            }
             Button("取消", role: .cancel) {}
         }
         .alert("图片上传失败", isPresented: Binding(get: { attachmentError != nil }, set: { if !$0 { attachmentError = nil } })) {
@@ -71,8 +101,12 @@ struct ChatView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(draftAttachments) { attachment in
-                        Label(attachment.originalFileName, systemImage: "photo")
-                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            AttachmentThumbnailView(attachment: attachment, attachmentStore: environment.attachmentStore)
+                                .frame(width: 34, height: 34)
+                            Text(attachment.originalFileName)
+                                .lineLimit(1)
+                        }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
                             .background(Color.happaSurface.opacity(0.75), in: Capsule())
@@ -114,8 +148,11 @@ struct ChatView: View {
         }
     }
 
-    private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        if let id = conversation.sortedMessages.last?.id { proxy.scrollTo(id, anchor: .bottom) }
+    private func scrollToBottom(_ proxy: ScrollViewProxy, after event: ChatScrollEvent) {
+        guard ChatScrollPolicy.shouldScrollToBottom(after: event, userIsAtBottom: userIsAtBottom) else { return }
+        withAnimation(.easeOut(duration: 0.18)) {
+            proxy.scrollTo(ChatScrollAnchor.bottom, anchor: .bottom)
+        }
     }
 
     private func send() {
@@ -153,5 +190,32 @@ struct ChatView: View {
         draftAttachments.removeAll { $0.id == attachment.id }
         for (index, item) in draftAttachments.enumerated() { item.userOrder = index }
         Task { try? await environment.attachmentStore.deleteDraft(attachment) }
+    }
+}
+
+enum ChatScrollEvent {
+    case newMessage
+    case streamingUpdate
+}
+
+enum ChatScrollPolicy {
+    static func shouldScrollToBottom(after event: ChatScrollEvent, userIsAtBottom: Bool) -> Bool {
+        switch event {
+        case .newMessage:
+            true
+        case .streamingUpdate:
+            userIsAtBottom
+        }
+    }
+}
+
+private enum ChatScrollAnchor {
+    static let bottom = "chat-scroll-bottom"
+}
+
+private struct ChatScrollBottomOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = .greatestFiniteMagnitude
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

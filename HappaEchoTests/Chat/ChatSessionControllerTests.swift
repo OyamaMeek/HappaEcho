@@ -82,6 +82,18 @@ final class ChatSessionControllerTests: XCTestCase {
         XCTAssertEqual(fixture.scheduler.enqueued.count, 2)
     }
 
+    func testCompletedFirstResponseGeneratesConversationTitle() async throws {
+        let fixture = try Fixture()
+        fixture.service.title = "磁场题解析"
+        fixture.service.streams = [.deltas(["Answer"])]
+
+        await fixture.controller.send(text: "请分析这道磁场题", attachments: [], conversation: fixture.conversation)
+        try await fixture.waitForTerminal()
+        try await fixture.waitForTitle("磁场题解析")
+
+        XCTAssertEqual(fixture.conversation.title, "磁场题解析")
+    }
+
     func testStoppingBeforeAnyDeltaDoesNotPersistAssistant() async throws {
         let fixture = try Fixture()
         fixture.service.streams = [.manual]
@@ -242,6 +254,7 @@ final class ChatSessionControllerTests: XCTestCase {
     let scheduler = FakeSyncScheduler()
     let attachmentRoot: URL
     let controller: ChatSessionController
+    let titleGenerator: TitleGenerationCoordinator
 
     init(supportsVision: Bool = true) throws {
         let container = try HappaEchoSchema.makeContainer(inMemory: true)
@@ -249,7 +262,15 @@ final class ChatSessionControllerTests: XCTestCase {
         attachmentRoot = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         conversation = Conversation(modelID: "model")
         context.insert(conversation)
-        controller = ChatSessionController(service: service, modelContext: context, attachmentStore: AttachmentStore(rootURL: attachmentRoot), syncScheduler: scheduler, settings: ChatSessionSettings(modelID: "model", supportsVision: supportsVision))
+        titleGenerator = TitleGenerationCoordinator(service: service, modelContext: context, syncScheduler: scheduler)
+        controller = ChatSessionController(
+            service: service,
+            modelContext: context,
+            attachmentStore: AttachmentStore(rootURL: attachmentRoot),
+            syncScheduler: scheduler,
+            settings: ChatSessionSettings(modelID: "model", supportsVision: supportsVision),
+            titleGenerator: titleGenerator
+        )
     }
 
     @discardableResult func add(role: MessageRole, content: String, sequence: Int, generationState: GenerationState = .none) -> Message {
@@ -269,6 +290,14 @@ final class ChatSessionControllerTests: XCTestCase {
         XCTFail("generation did not finish")
     }
 
+    func waitForTitle(_ expected: String) async throws {
+        for _ in 0..<100 {
+            if conversation.title == expected { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("title was not generated")
+    }
+
     func importedAttachment(named name: String, order: Int) async throws -> MessageAttachment {
         let directory = attachmentRoot.appending(path: conversation.id.uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -279,9 +308,11 @@ final class ChatSessionControllerTests: XCTestCase {
     }
 }
 
-private final class FakeSyncScheduler: NotionSyncScheduling, @unchecked Sendable {
+private final class FakeSyncScheduler: NotionSyncScheduling, TitleSyncScheduling, @unchecked Sendable {
     var enqueued: [UUID] = []
     func enqueue(messageID: UUID) { enqueued.append(messageID) }
+    func enqueueMetadata(conversationID: UUID) {}
+    func resumePending() {}
     func cancel(conversationID: UUID) {}
 }
 
@@ -289,6 +320,7 @@ private final class FakeChatService: ChatCompletionService {
     enum Script { case manual, controlled(ControlledStream), deltas([String]), failure(Error), deltasThenFailure([String], Error) }
     var streams: [Script] = []
     var requests: [ChatRequest] = []
+    var title = ""
     func stream(request: ChatRequest) -> AsyncThrowingStream<String, Error> {
         requests.append(request)
         guard !streams.isEmpty else { return AsyncThrowingStream { $0.finish() } }
@@ -307,7 +339,7 @@ private final class FakeChatService: ChatCompletionService {
         }
         }
     }
-    func generateTitle(request: TitleRequest) async throws -> String { "" }
+    func generateTitle(request: TitleRequest) async throws -> String { title }
 }
 
 private final class ControlledStream: @unchecked Sendable {

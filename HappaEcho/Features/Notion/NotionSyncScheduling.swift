@@ -2,6 +2,8 @@ import Foundation
 
 protocol NotionSyncScheduling: Sendable {
     func enqueue(messageID: UUID)
+    func enqueueMetadata(conversationID: UUID)
+    func resumePending()
     func cancel(conversationID: UUID)
 }
 

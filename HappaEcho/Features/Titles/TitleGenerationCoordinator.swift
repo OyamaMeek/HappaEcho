@@ -10,7 +10,13 @@ extension TitleSyncScheduling {
 }
 
 @MainActor
-final class TitleGenerationCoordinator {
+protocol ConversationTitleGenerating: AnyObject {
+    func generateIfEligible(for conversation: Conversation) async
+    func setManualTitle(_ title: String, for conversation: Conversation) async throws
+}
+
+@MainActor
+final class TitleGenerationCoordinator: ConversationTitleGenerating {
     private let service: ChatCompletionService
     private let modelContext: ModelContext
     private let syncScheduler: TitleSyncScheduling
