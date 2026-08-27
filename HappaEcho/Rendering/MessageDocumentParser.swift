@@ -20,6 +20,7 @@ struct MessageDocumentParser {
         var paragraph: [String] = []
         var code: [String] = []
         var displayMath: [String]?
+        var displayMathClosingDelimiter: String?
         var language = "plain"
         var fenced = false
 
@@ -50,13 +51,14 @@ struct MessageDocumentParser {
             }
 
             if displayMath != nil {
-                if trimmed == "$$" {
+                if trimmed == displayMathClosingDelimiter {
                     let expression = displayMath!.joined(separator: "\n")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     if !expression.isEmpty {
                         nodes.append(.displayMath(expression))
                     }
                     displayMath = nil
+                    displayMathClosingDelimiter = nil
                 } else {
                     displayMath!.append(line)
                 }
@@ -66,10 +68,24 @@ struct MessageDocumentParser {
             if trimmed == "$$" {
                 flushParagraph()
                 displayMath = []
+                displayMathClosingDelimiter = "$$"
                 continue
             }
 
             if trimmed.hasPrefix("$$"), trimmed.hasSuffix("$$"), trimmed.count > 4 {
+                flushParagraph()
+                nodes.append(.displayMath(String(trimmed.dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespacesAndNewlines)))
+                continue
+            }
+
+            if trimmed == "\\[" {
+                flushParagraph()
+                displayMath = []
+                displayMathClosingDelimiter = "\\]"
+                continue
+            }
+
+            if trimmed.hasPrefix("\\["), trimmed.hasSuffix("\\]"), trimmed.count > 4 {
                 flushParagraph()
                 nodes.append(.displayMath(String(trimmed.dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespacesAndNewlines)))
                 continue

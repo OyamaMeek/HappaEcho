@@ -22,24 +22,32 @@ struct LaTeXRenderer {
  }
 }
 
-private struct LaTeXTextFormatter {
+struct LaTeXTextFormatter {
  func format(_ expression: String) -> String {
   var value = expression
   for command in ["mathrm", "text", "mathbf", "mathit"] {
    value = replace("\\\(command){", in: value)
   }
+  value = fractions(in: value)
   let replacements = [
    "\\qquad": "  ", "\\quad": " ", "\\,": " ", "\\;": " ", "\\:": " ",
    "\\cdot": "⋅", "\\times": "×", "\\div": "÷", "\\pm": "±", "\\mp": "∓",
    "\\leq": "≤", "\\geq": "≥", "\\neq": "≠", "\\approx": "≈", "\\infty": "∞",
    "\\alpha": "α", "\\beta": "β", "\\gamma": "γ", "\\delta": "δ", "\\theta": "θ",
-   "\\lambda": "λ", "\\mu": "μ", "\\pi": "π", "\\sigma": "σ", "\\omega": "ω"
+   "\\lambda": "λ", "\\mu": "μ", "\\pi": "π", "\\sigma": "σ", "\\omega": "ω",
+   "\\ldots": "…", "\\cdots": "⋯", "\\dots": "…", "\\sqrt": "√"
   ]
   for (command, replacement) in replacements { value = value.replacingOccurrences(of: command, with: replacement) }
   value = value.replacingOccurrences(of: "\\left", with: "").replacingOccurrences(of: "\\right", with: "")
   value = value.replacingOccurrences(of: "\\", with: "")
   value = scripts(in: value)
   return value.replacingOccurrences(of: "{", with: "").replacingOccurrences(of: "}", with: "")
+ }
+
+ func formatInlineMath(in text: String) -> String {
+  var output = replaceDelimitedMath(in: text, opening: "\\(", closing: "\\)")
+  output = replaceDelimitedMath(in: output, opening: "$", closing: "$")
+  return output
  }
 
  private func replace(_ prefix: String, in value: String) -> String {
@@ -49,6 +57,72 @@ private struct LaTeXTextFormatter {
    output.replaceSubrange(start.lowerBound...end, with: output[start.upperBound..<end])
   }
   return output
+ }
+
+ private func fractions(in value: String) -> String {
+  var output = value
+  while let range = output.range(of: "\\frac{") {
+   let numeratorStart = range.upperBound
+   guard let numeratorEnd = matchingBrace(in: output, from: numeratorStart),
+         numeratorEnd < output.endIndex,
+         output.index(after: numeratorEnd) < output.endIndex,
+         output[output.index(after: numeratorEnd)] == "{"
+   else { break }
+
+   let denominatorStart = output.index(after: output.index(after: numeratorEnd))
+   guard let denominatorEnd = matchingBrace(in: output, from: denominatorStart) else { break }
+
+   let numerator = String(output[numeratorStart..<numeratorEnd])
+   let denominator = String(output[denominatorStart..<denominatorEnd])
+   output.replaceSubrange(range.lowerBound...denominatorEnd, with: "(\(numerator))⁄(\(denominator))")
+  }
+  while let range = output.range(of: "\\frac") {
+   let numeratorIndex = range.upperBound
+   guard numeratorIndex < output.endIndex,
+         output[numeratorIndex] != "{"
+   else { break }
+   let denominatorIndex = output.index(after: numeratorIndex)
+   guard denominatorIndex < output.endIndex else { break }
+   let numerator = output[numeratorIndex]
+   let denominator = output[denominatorIndex]
+   output.replaceSubrange(range.lowerBound...denominatorIndex, with: "\(numerator)⁄\(denominator)")
+  }
+  return output
+ }
+
+ private func replaceDelimitedMath(in value: String, opening: String, closing: String) -> String {
+  var output = value
+  var searchStart = output.startIndex
+  while let openingRange = output.range(of: opening, range: searchStart..<output.endIndex) {
+    let expressionStart = openingRange.upperBound
+    guard let closingRange = output.range(of: closing, range: expressionStart..<output.endIndex) else { break }
+    let expression = String(output[expressionStart..<closingRange.lowerBound])
+   let renderedExpression = format(expression)
+   let replacementOffset = output.distance(from: output.startIndex, to: openingRange.lowerBound)
+   output.replaceSubrange(openingRange.lowerBound..<closingRange.upperBound, with: renderedExpression)
+   searchStart = output.index(
+    output.startIndex,
+    offsetBy: replacementOffset + renderedExpression.count,
+    limitedBy: output.endIndex
+   ) ?? output.endIndex
+  }
+  return output
+ }
+
+ private func matchingBrace(in value: String, from contentStart: String.Index) -> String.Index? {
+  var depth = 1
+  var index = contentStart
+  while index < value.endIndex {
+   switch value[index] {
+   case "{": depth += 1
+   case "}":
+    depth -= 1
+    if depth == 0 { return index }
+   default: break
+   }
+   index = value.index(after: index)
+  }
+  return nil
  }
 
  private func scripts(in value: String) -> String {

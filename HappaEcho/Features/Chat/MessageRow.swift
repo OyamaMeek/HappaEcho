@@ -4,6 +4,9 @@ import UIKit
 struct MessageRow: View {
     let message: Message
     let attachmentStore: AttachmentStore
+    private let thumbnailSize: CGFloat = 112
+    private let thumbnailSpacing: CGFloat = 8
+    private let maximumThumbnailColumns = 3
 
     var body: some View {
         HStack {
@@ -13,12 +16,13 @@ struct MessageRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if !message.attachments.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
+                    LazyVGrid(columns: thumbnailColumns, spacing: thumbnailSpacing) {
                         ForEach(message.attachments.sorted(by: { $0.userOrder < $1.userOrder })) {
                             AttachmentThumbnailView(attachment: $0, attachmentStore: attachmentStore)
-                                .frame(width: 112, height: 112)
+                                .frame(width: thumbnailSize, height: thumbnailSize)
                         }
                     }
+                    .frame(width: thumbnailGridWidth, alignment: .leading)
                 }
                 if !message.content.isEmpty {
                     MessageContentView(content: message.content)
@@ -30,6 +34,22 @@ struct MessageRow: View {
         }
         .id(message.id)
         .accessibilityElement(children: .contain)
+    }
+
+    private var thumbnailColumnCount: Int {
+        min(maximumThumbnailColumns, max(1, message.attachments.count))
+    }
+
+    private var thumbnailColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.fixed(thumbnailSize), spacing: thumbnailSpacing),
+            count: thumbnailColumnCount
+        )
+    }
+
+    private var thumbnailGridWidth: CGFloat {
+        (CGFloat(thumbnailColumnCount) * thumbnailSize)
+            + (CGFloat(thumbnailColumnCount - 1) * thumbnailSpacing)
     }
 }
 
@@ -58,6 +78,7 @@ struct AttachmentThumbnailView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Image(systemName: "photo")
                     .font(.title3)

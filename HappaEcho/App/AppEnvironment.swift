@@ -9,12 +9,12 @@ final class AppEnvironment {
     let attachmentStore: AttachmentStore
 
     init(
-        container: ModelContainer = try! HappaEchoSchema.makeContainer(inMemory: false),
+        container: ModelContainer? = nil,
         settingsRepository: SettingsRepository = .init(),
         syncScheduler: NotionSyncScheduling = NoopNotionScheduler(),
         attachmentStore: AttachmentStore = AttachmentStore()
-    ) {
-        self.container = container
+    ) throws {
+        self.container = try container ?? HappaEchoSchema.makeContainer(inMemory: false)
         self.settingsRepository = settingsRepository
         self.syncScheduler = syncScheduler
         self.attachmentStore = attachmentStore

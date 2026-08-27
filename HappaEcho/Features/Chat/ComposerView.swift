@@ -8,6 +8,7 @@ struct ComposerView: View {
     let isGenerating: Bool
     let send: () -> Void
     let stop: () -> Void
+    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 12) {
@@ -20,6 +21,9 @@ struct ComposerView: View {
 
             TextField("输入消息", text: $text, axis: .vertical)
                 .lineLimit(1...6)
+                .focused($isInputFocused)
+                .submitLabel(.send)
+                .onSubmit(sendMessageAndDismissKeyboard)
                 .accessibilityIdentifier("composer-input")
 
             if isGenerating {
@@ -28,7 +32,7 @@ struct ComposerView: View {
                 }
                 .accessibilityLabel("停止生成")
             } else {
-                Button(action: send) {
+                Button(action: sendMessageAndDismissKeyboard) {
                     Image(systemName: "arrow.up.circle.fill").font(.title2)
                 }
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasAttachments)
@@ -37,5 +41,11 @@ struct ComposerView: View {
         }
         .padding()
         .background(.bar)
+    }
+
+    private func sendMessageAndDismissKeyboard() {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasAttachments else { return }
+        isInputFocused = false
+        send()
     }
 }
